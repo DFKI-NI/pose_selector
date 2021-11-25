@@ -1,0 +1,44 @@
+debug: false
+frame_id: map
+poses: 
+  can_1:
+    class: can
+    instance: 1
+    x: 0.1
+    y: 0.2
+    z: 0.3
+    rx: 0.0
+    ry: 0.1
+    rz: 0.1
+    rw: 1.0
+  bottle_1:
+    class: bottle
+    instance: 1
+    x: -0.4
+    y: -0.6
+    z: -0.8
+    rx: 0.1
+    ry: 0.0
+    rz: 0.0
+    rw: 1.0
+  bottle_2:
+    class: bottle
+    instance: 2
+    x: 0.4
+    y: 0.6
+    z: 0.8
+    rx: 0.1
+    ry: 0.0
+    rz: 0.0
+    rw: 1.0
+  screwdriver_1:
+    class: screwdriver
+    instance: 1
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    rx: 0.0
+    ry: 0.0
+    rz: 0.0
+    rw: 1.0
+
