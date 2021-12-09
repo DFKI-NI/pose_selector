@@ -18,6 +18,7 @@ add_service_files(
   ClassQuery.srv
   PoseUpdate.srv
   PoseDelete.srv
+  ConfigSave.srv
 )
 
 generate_messages(

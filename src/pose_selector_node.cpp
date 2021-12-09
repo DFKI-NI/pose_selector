@@ -5,6 +5,7 @@
 #include <pose_selector/ClassQuery.h>
 #include <pose_selector/PoseUpdate.h>
 #include <pose_selector/PoseDelete.h>
+#include <pose_selector/ConfigSave.h>
 
 struct PoseEntry
 {
@@ -116,7 +117,7 @@ class PoseSelector
     }
 
     //Save parameters to yaml file
-    bool callback_save(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res)
+    bool callback_save(pose_selector::ConfigSave::Request &req, pose_selector::ConfigSave::Response &res)
     {
         ros::NodeHandle pn("~");
 
@@ -133,7 +134,7 @@ class PoseSelector
             pn.setParam("poses/"+key+"/z",value.pose_stamped.pose.position.z);
         }
 
-        std::string save_dir = ros::package::getPath("pose_selector") + "/config/test_save.yaml";
+        std::string save_dir = ros::package::getPath("pose_selector") + "/config/" + req.file_name + ".yaml";
         std::string command = "rosparam dump " + save_dir + " " + pn.getNamespace();
         system(command.c_str());
         return true;
@@ -156,10 +157,10 @@ class PoseSelector
 
             for (XmlRpc::XmlRpcValue::iterator i = poses_list.begin(); i != poses_list.end(); i++)
             {
-                //Check that poses sub-paramater is a structure
+                //Check that sub-parameters in poses are also structures
                 ROS_ASSERT(i->second.getType()==XmlRpc::XmlRpcValue::TypeStruct);
 
-                //Check that pose, class, and instance parameters are correct format
+                //Check that pose, class, and instance sub-parameters are correct format
                 ROS_ASSERT(i->second["x"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["y"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["z"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
