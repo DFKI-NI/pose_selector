@@ -142,7 +142,6 @@ class PoseSelector
     //Load the poses from a yaml file
     void load_poses()
     {
-        ///TODO: ROS Asserts needed for loading yaml?
         ros::NodeHandle pn("~");
 
         XmlRpc::XmlRpcValue poses_list;
@@ -152,8 +151,25 @@ class PoseSelector
             ROS_ERROR_STREAM("Failed to get initial poses");
         }else
         {
+            //Check that main poses parameter is a structure
+            ROS_ASSERT(poses_list.getType()==XmlRpc::XmlRpcValue::TypeStruct);
+
             for (XmlRpc::XmlRpcValue::iterator i = poses_list.begin(); i != poses_list.end(); i++)
             {
+                //Check that poses sub-paramater is a structure
+                ROS_ASSERT(i->second.getType()==XmlRpc::XmlRpcValue::TypeStruct);
+
+                //Check that pose, class, and instance parameters are correct format
+                ROS_ASSERT(i->second["x"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["y"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["z"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["rx"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["ry"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["rz"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+                ROS_ASSERT(i->second["class"].getType()==XmlRpc::XmlRpcValue::TypeString);
+                ROS_ASSERT(i->second["instance"].getType()==XmlRpc::XmlRpcValue::TypeInt);
+                
                 geometry_msgs::PoseStamped pose_item;
                 pose_item.pose.position.x = i->second["x"];
                 pose_item.pose.position.y = i->second["y"];
