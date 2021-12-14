@@ -64,24 +64,25 @@ class PoseSelector
         return true;
     }
 
-    //Service to query all items of a certain class and to return the poses of the items
+    //Service to query all items of a certain class and to return the poses and ids of the items
     bool callback_class_query(pose_selector::ClassQuery::Request &req, pose_selector::ClassQuery::Response &res)
     {
         std::string class_id = req.class_id;
 
         if(debug_) ROS_INFO_STREAM("Class query service call: " << class_id);
 
-        std::vector<geometry_msgs::PoseStamped> srv_result;
+        std::vector<geometry_msgs::PoseStamped> pose_result;
 
         for (const auto& [key, value] : pose_map)
         {
             if (value.class_id == class_id)
             {
-                srv_result.push_back(value.pose_stamped);
+                pose_result.push_back(value.pose_stamped);
+                res.instance_ids.push_back(value.instance);
             }
         }
 
-        res.pose_query_result = srv_result;
+        res.poses = pose_result;
 
         return true;
     }

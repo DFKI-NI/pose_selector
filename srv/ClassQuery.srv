@@ -1,3 +1,4 @@
 string class_id
 ---
-geometry_msgs/PoseStamped[] pose_query_result
+uint32[] instance_ids
+geometry_msgs/PoseStamped[] poses
