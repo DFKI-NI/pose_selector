@@ -1,4 +1,4 @@
-debug: false
+debug: true
 frame_id: map
 poses: 
   can_1:

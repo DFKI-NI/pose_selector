@@ -21,6 +21,11 @@ add_service_files(
   ConfigSave.srv
 )
 
+add_message_files(
+  FILES
+  LabeledPose.msg
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
@@ -43,3 +48,8 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(update_test src/pose_update_tester.cpp)
+add_dependencies(update_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(update_test
+  ${catkin_LIBRARIES}
+)

@@ -1,0 +1,3 @@
+string class_id
+uint32 instance_id
+geometry_msgs/PoseStamped pose

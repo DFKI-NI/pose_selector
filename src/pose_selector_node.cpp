@@ -86,15 +86,27 @@ class PoseSelector
         return true;
     }
 
-    //Service to update/add the pose of an item
+    //Service to update one or more poses
     bool callback_pose_update(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
     {
         
-        std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
-        
-        if(debug_) ROS_INFO_STREAM("Update pose service call: " << item_id);
+        for(auto i : req.poses)
+        {
+            if(i.pose.header.frame_id != frame_id_)
+            {
+                if(debug_) 
+                {
+                    ROS_ERROR_STREAM("Attempted pose update in " << i.pose.header.frame_id << " frame_id, should be in " << frame_id_ << " frame_id.");
+                    continue;
+                }
+            }
 
-        pose_map.insert_or_assign(item_id, PoseEntry(req.class_id, req.instance_id, req.pose_update));
+            std::string item_id = i.class_id + "_" + std::to_string(i.instance_id);
+            
+            if(debug_) ROS_INFO_STREAM("Update pose service call: " << item_id);
+
+            pose_map.insert_or_assign(item_id, PoseEntry(i.class_id, i.instance_id, i.pose));
+        }
 
         if(debug_) print_poses();
 
