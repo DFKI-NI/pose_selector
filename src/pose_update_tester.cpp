@@ -12,11 +12,11 @@ int main(int argc, char **argv)
     pose_selector::LabeledPose pose_one;
     pose_one.class_id = "chicken";
     pose_one.instance_id = 24;
-    pose_one.pose.header.frame_id = "chicken_frame";
+    pose_one.pose.header.frame_id = "map";
 
     pose_selector::LabeledPose pose_two;
     pose_two.class_id = "dog";
-    pose_two.pose.header.frame_id = "dog_frame";
+    pose_two.pose.header.frame_id = "map";
 
     srv.request.poses.push_back(pose_one);
     srv.request.poses.push_back(pose_two);
