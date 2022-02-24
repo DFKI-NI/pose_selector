@@ -1,9 +1,6 @@
 debug: true
-frame_id: map
 poses: 
   can_1:
-    class: can
-    instance: 1
     x: 0.1
     y: 0.2
     z: 0.3
@@ -11,9 +8,16 @@ poses:
     ry: 0.1
     rz: 0.1
     rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
   bottle_1:
-    class: bottle
-    instance: 1
     x: -0.4
     y: -0.6
     z: -0.8
@@ -21,9 +25,16 @@ poses:
     ry: 0.0
     rz: 0.0
     rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
   bottle_2:
-    class: bottle
-    instance: 2
     x: 0.4
     y: 0.6
     z: 0.8
@@ -31,9 +42,16 @@ poses:
     ry: 0.0
     rz: 0.0
     rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
   screwdriver_1:
-    class: screwdriver
-    instance: 1
     x: 0.0
     y: 0.0
     z: 0.0
@@ -41,4 +59,13 @@ poses:
     ry: 0.0
     rz: 0.0
     rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
 

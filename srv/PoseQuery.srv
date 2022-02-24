@@ -1,4 +1,4 @@
 string class_id
 int64 instance_id
 ---
-geometry_msgs/PoseStamped pose_query_result
+ObjectPose pose_query_result

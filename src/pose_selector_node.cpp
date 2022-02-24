@@ -1,6 +1,11 @@
 #include "ros/ros.h"
 #include <ros/package.h>
 #include <std_srvs/Trigger.h>
+#include <std_srvs/SetBool.h>
+#include <tf/transform_datatypes.h>
+#include <tf2/convert.h>
+#include <pose_selector/ObjectList.h>
+#include <pose_selector/ObjectPose.h>
 #include <pose_selector/PoseQuery.h>
 #include <pose_selector/ClassQuery.h>
 #include <pose_selector/PoseUpdate.h>
@@ -11,11 +16,16 @@ struct PoseEntry
 {
     std::string class_id;
     int instance;
-    geometry_msgs::PoseStamped pose_stamped;
+    pose_selector::ObjectPose pose_stamped;
 
     PoseEntry(){};
 
-    PoseEntry(std::string id_ , int instance_id_ , geometry_msgs::PoseStamped pose_msg_) : class_id(id_), instance(instance_id_), pose_stamped(pose_msg_) {}
+    PoseEntry(pose_selector::ObjectPose pose_msg_){
+        std::string::size_type n = pose_msg_.label.find("_");
+        class_id = pose_msg_.label.substr(0,n);
+        instance = std::stoi(pose_msg_.label.substr(n+1));
+        pose_stamped = pose_msg_;
+    }
 
 };
 
@@ -23,12 +33,14 @@ class PoseSelector
 {
     private:
     bool debug_;
-    std::string frame_id_;
+    bool recording_enabled_;
     ros::ServiceServer query_service;
     ros::ServiceServer class_query_service;
     ros::ServiceServer update_service;
     ros::ServiceServer delete_service;
     ros::ServiceServer save_service;
+    ros::ServiceServer record_activate_service;
+    ros::Subscriber pose_sub;
     std::map<std::string,PoseEntry> pose_map;
 
     public:
@@ -36,13 +48,14 @@ class PoseSelector
     {
         ros::NodeHandle pn("~");
         pn.param("debug", debug_, false);
-        pn.param<std::string>("frame_id", frame_id_, "map");
-
+        recording_enabled_ = false;
         query_service = nh->advertiseService("/pose_selector_query", &PoseSelector::callback_pose_query, this);
         class_query_service = nh->advertiseService("/pose_selector_class_query", &PoseSelector::callback_class_query, this);
         update_service = nh->advertiseService("/pose_selector_update", &PoseSelector::callback_pose_update, this);
         delete_service = nh->advertiseService("/pose_selector_delete", &PoseSelector::callback_pose_delete, this);
         save_service = nh->advertiseService("/pose_selector_save", &PoseSelector::callback_save, this);
+        record_activate_service = nh->advertiseService("/pose_selector_activate", &PoseSelector::activate_recording, this );
+        pose_sub = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
     }
 
     //Service to query for an item ID and to return the pose of the item
@@ -71,14 +84,13 @@ class PoseSelector
 
         if(debug_) ROS_INFO_STREAM("Class query service call: " << class_id);
 
-        std::vector<geometry_msgs::PoseStamped> pose_result;
+        std::vector<pose_selector::ObjectPose> pose_result;
 
         for (const auto& [key, value] : pose_map)
         {
             if (value.class_id == class_id)
             {
                 pose_result.push_back(value.pose_stamped);
-                res.instance_ids.push_back(value.instance);
             }
         }
 
@@ -91,27 +103,61 @@ class PoseSelector
     bool callback_pose_update(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
     {
         
-        for(auto i : req.poses)
-        {
-            if(i.pose.header.frame_id != frame_id_)
-            {
-                if(debug_) 
-                {
-                    ROS_ERROR_STREAM("Attempted pose update in " << i.pose.header.frame_id << " frame_id, should be in " << frame_id_ << " frame_id.");
-                    continue;
-                }
-            }
-
-            std::string item_id = i.class_id + "_" + std::to_string(i.instance_id);
-            
-            if(debug_) ROS_INFO_STREAM("Update pose service call: " << item_id);
-
-            pose_map.insert_or_assign(item_id, PoseEntry(i.class_id, i.instance_id, i.pose));
-        }
+        update_poses(req.poses);
 
         if(debug_) print_poses();
 
         return true;
+    }
+
+    void update_poses(pose_selector::ObjectList object_list)
+    {
+        //Get reference pose and convert to tf::Transform
+        geometry_msgs::Point ref_pos = object_list.reference_pose.position;
+        geometry_msgs::Quaternion ref_orient = object_list.reference_pose.orientation;
+        tf::Transform camera_transform;
+        camera_transform.setOrigin(tf::Vector3(ref_pos.x,ref_pos.y,ref_pos.z));
+        camera_transform.setRotation(tf::Quaternion(ref_orient.x,ref_orient.y,ref_orient.z,ref_orient.w));
+
+        //Iterate through each object detected
+        for (auto i: object_list.objects)
+        {
+            //Convert object pose to tf::Transform
+            geometry_msgs::Point obj_pos = i.pose.position;
+            geometry_msgs::Quaternion obj_orient = i.pose.orientation;
+            tf::Transform obj_transform;
+            obj_transform.setOrigin(tf::Vector3(obj_pos.x,obj_pos.y,obj_pos.z));
+            obj_transform.setRotation(tf::Quaternion(obj_orient.x,obj_orient.y,obj_orient.z,obj_orient.w));
+
+            //Calculate resultant transform from reference to object
+            obj_transform = camera_transform*obj_transform;
+            tf::Vector3 final_position = obj_transform.getOrigin();
+            tf::Quaternion final_orientation = obj_transform.getRotation();
+
+            //Extract and update PoseEntry with correct pose information
+            PoseEntry update_entry = PoseEntry(i);
+            i.pose.position.x = final_position[0];
+            i.pose.position.y = final_position[1];
+            i.pose.position.z = final_position[2];
+
+            i.pose.orientation.x = final_orientation.getX();
+            i.pose.orientation.y = final_orientation.getY();
+            i.pose.orientation.z = final_orientation.getZ();
+            i.pose.orientation.w = final_orientation.getW();
+
+            pose_map.insert_or_assign(i.label, PoseEntry(i));
+        }
+    }
+
+    void poseCallback(pose_selector::ObjectList object_list)
+    {
+        if(recording_enabled_)
+        {
+            ROS_INFO_STREAM("Received Message");
+            update_poses(object_list);
+
+            if(debug_) print_poses();
+        }
     }
 
     //Service to delete an item
@@ -136,8 +182,6 @@ class PoseSelector
 
         for (const auto& [key, value] : pose_map)
         {
-            pn.setParam("poses/"+key+"/class",value.class_id);
-            pn.setParam("poses/"+key+"/instance",value.instance);
             pn.setParam("poses/"+key+"/rw",value.pose_stamped.pose.orientation.w);
             pn.setParam("poses/"+key+"/rx",value.pose_stamped.pose.orientation.x);
             pn.setParam("poses/"+key+"/ry",value.pose_stamped.pose.orientation.y);
@@ -145,6 +189,15 @@ class PoseSelector
             pn.setParam("poses/"+key+"/x",value.pose_stamped.pose.position.x);
             pn.setParam("poses/"+key+"/y",value.pose_stamped.pose.position.y);
             pn.setParam("poses/"+key+"/z",value.pose_stamped.pose.position.z);
+            pn.setParam("poses/"+key+"/size_x",value.pose_stamped.size.x);
+            pn.setParam("poses/"+key+"/size_y",value.pose_stamped.size.y);
+            pn.setParam("poses/"+key+"/size_z",value.pose_stamped.size.z);
+            pn.setParam("poses/"+key+"/min_x",value.pose_stamped.min.x);
+            pn.setParam("poses/"+key+"/min_y",value.pose_stamped.min.y);
+            pn.setParam("poses/"+key+"/min_z",value.pose_stamped.min.z);
+            pn.setParam("poses/"+key+"/max_x",value.pose_stamped.max.x);
+            pn.setParam("poses/"+key+"/max_y",value.pose_stamped.max.y);
+            pn.setParam("poses/"+key+"/max_z",value.pose_stamped.max.z);
         }
 
         std::string save_dir = ros::package::getPath("pose_selector") + "/config/" + req.file_name + ".yaml";
@@ -181,10 +234,10 @@ class PoseSelector
                 ROS_ASSERT(i->second["ry"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["rz"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["class"].getType()==XmlRpc::XmlRpcValue::TypeString);
-                ROS_ASSERT(i->second["instance"].getType()==XmlRpc::XmlRpcValue::TypeInt);
                 
-                geometry_msgs::PoseStamped pose_item;
+                pose_selector::ObjectPose pose_item;
+                //geometry_msgs::PoseStamped pose_item;
+                
                 pose_item.pose.position.x = i->second["x"];
                 pose_item.pose.position.y = i->second["y"];
                 pose_item.pose.position.z = i->second["z"];
@@ -192,15 +245,27 @@ class PoseSelector
                 pose_item.pose.orientation.y = i->second["ry"];
                 pose_item.pose.orientation.z = i->second["rz"];
                 pose_item.pose.orientation.w = i->second["rw"];
-                struct PoseEntry pose_entry(i->second["class"],i->second["instance"],pose_item);
+                pose_item.size.x = i->second["size_x"];
+                pose_item.size.y = i->second["size_y"];
+                pose_item.size.z = i->second["size_z"];
+                pose_item.min.x = i->second["min_x"];
+                pose_item.min.y = i->second["min_y"];
+                pose_item.min.z = i->second["min_z"];
+                pose_item.max.x = i->second["max_x"];
+                pose_item.max.y = i->second["max_y"];
+                pose_item.max.z = i->second["max_z"];
+                pose_item.label = i->first;
+                //struct PoseEntry pose_entry(i->second["class"],i->second["instance"],pose_item);
+                struct PoseEntry pose_entry(pose_item);
 
                 pose_map[i->first] = pose_entry;
             }
 
             if(debug_) print_poses();
-        }
 
         pn.deleteParam("poses");
+        }
+
     }
 
     //Iterate through the pose_map and print all items and their poses
@@ -211,6 +276,14 @@ class PoseSelector
         {
             ROS_INFO_STREAM("\nId: " << elem.first << " \nClass: " << elem.second.class_id << "\nInstance: " << elem.second.instance << "\n" << elem.second.pose_stamped);
         }
+    }
+
+    /// TODO: Turn on/off recording 
+    bool activate_recording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
+    {
+        recording_enabled_ = req.data;
+        res.success = true;
+        return true;
     }
 };
 

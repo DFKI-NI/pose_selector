@@ -24,6 +24,8 @@ add_service_files(
 add_message_files(
   FILES
   LabeledPose.msg
+  ObjectList.msg
+  ObjectPose.msg
 )
 
 generate_messages(
@@ -33,7 +35,7 @@ generate_messages(
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime roslib
+  CATKIN_DEPENDS roscpp rospy geometry_msgs std_msgs message_runtime roslib
 )
 
 include_directories(
@@ -48,8 +50,8 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
-add_executable(update_test src/pose_update_tester.cpp)
-add_dependencies(update_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(update_test
-  ${catkin_LIBRARIES}
-)
+# add_executable(update_test src/pose_update_tester.cpp)
+# add_dependencies(update_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(update_test
+#   ${catkin_LIBRARIES}
+# )
