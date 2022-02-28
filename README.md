@@ -6,13 +6,26 @@ This package provides functionality for storing, querying, and modifying pose in
 
 ---
 
-**LabeledPose.msg**
- 
-    string class_id  //class of object, e.g. 'screwdriver'
-    uint32 instance_id //instance of object, e.g. '2' for 2nd instance
-    geometry_msgs/PoseStamped pose //pose of object
+The pose selector consists of two message types, ObjectPose and ObjectList (see below). ObjectPose contains a label string, pose, and vectors representing the object size, minimum points, and maximum points (for bounding box). The ObjectList contains header information, an array of ObjectPoses, and a reference pose for all poses in the ObjectList (i.e. this reference pose could be the global pose of the camera, and each ObjectPose is provided in reference to the camera pose).
 
 ---
+
+**ObjectPose.msg**
+ 
+    string label  //label of object, e.g. 'screwdriver_1'
+    geometry_msgs/Pose pose //pose of object
+    geometry_msgs/Vector3 size //size of object
+    geometry_msgs/Vector3 min //minimum points of object bounding box
+    geometry_msgs/Vector3 max //maximum points of object bounding box
+
+---
+
+**ObjectList.msg**
+ 
+    std_msgs/Header header //header information
+    ObjectPose[] objects //array of ObjectPoses
+    geometry_msgs/Pose reference_pose //Reference pose for all ObjectPoses in objects
+
 
 ## Services
 
@@ -20,7 +33,7 @@ This package provides functionality for storing, querying, and modifying pose in
 
 **ClassQuery.srv**
 
-Given a class type as a request, this service will return arrays of object instance IDs and poses corresponding to all instances of the requested class type.
+Given a class type as a request, this service will return arrays of ObjectPoses corresponding to all instances of the requested class type.
 
 request: 
 
@@ -28,8 +41,7 @@ request:
 
 response:
 
-    uint32[] instance_ids
-    geometry_msgs/PoseStamped[] poses
+    ObjectPose[] poses
 
 ---
 
@@ -73,7 +85,7 @@ request:
 
 response:
 
-    geometry_msgs/PoseStamped pose_query_result
+    ObjectPose pose_query_result
 
 ---
 
@@ -83,7 +95,7 @@ This service updates the current pose information (either creating new entries o
 
 request:
 
-    LabeledPose[] poses 
+    ObjectList[] poses 
 
 response:
 
@@ -106,6 +118,11 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 * **pose_selector_update** (pose_selector::PoseUpdate)
 * **pose_selector_delete** (pose_selector::PoseDelete)
 * **pose_selector_save** (pose_selector::ConfigSave)
+* **pose_selector_activate** (std_srvs::SetBool)
+
+**Subscribers**
+
+* **pose_sub** (pose_selector::ObjectList)
 
 **Launch Files**
 
@@ -118,10 +135,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 **Configuration Parameters**
 
 * **debug** (bool default: false, set to true to turn on debug messages)
-* **frame_id** (string default: map, tf frame that all poses should be in)
 * **poses** (struct, setup for pose storage. See configuration files for examples)
-* **poses/\<name\>/class** (string, object class id)
-* **poses/\<name\>/instance** (int, object instance id)
 * **poses/\<name\>/x** (double, object position on x-axis)
 * **poses/\<name\>/y** (double, object position on y-axis)
 * **poses/\<name\>/z** (double, object position on z-axis)
@@ -129,6 +143,15 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 * **poses/\<name\>/ry** (double, object orientation quaternion y value)
 * **poses/\<name\>/rz** (double, object orientation quaternion z value)
 * **poses/\<name\>/rw** (double, object orientation quaternion w value)
+* **poses/\<name\>/size_x** (double, object size on x-axis)
+* **poses/\<name\>/size_y** (double, object size on y-axis)
+* **poses/\<name\>/size_z** (double, object size on z-axis)
+* **poses/\<name\>/min_x** (double, object's bounding box minimum position on x-axis)
+* **poses/\<name\>/min_y** (double, object's bounding box minimum position on y-axis)
+* **poses/\<name\>/min_z** (double, object's bounding box minimum position on z-axis)
+* **poses/\<name\>/max_x** (double, object's bounding box maximum position on x-axis)
+* **poses/\<name\>/max_y** (double, object's bounding box maximum position on y-axis)
+* **poses/\<name\>/max_z** (double, object's bounding box maximum position on z-axis)
 
 ---
 
@@ -162,4 +185,3 @@ rosrun pose_selector update_test
 
 After running update_test, you should see an updated list of poses in the pose_selector terminal.
 
-**TODO**: More examples

@@ -9,17 +9,14 @@ int main(int argc, char **argv)
     ros::ServiceClient client = nh.serviceClient<pose_selector::PoseUpdate>("pose_selector_update");
     pose_selector::PoseUpdate srv;
 
-    pose_selector::LabeledPose pose_one;
-    pose_one.class_id = "chicken";
-    pose_one.instance_id = 24;
-    pose_one.pose.header.frame_id = "map";
+    pose_selector::ObjectPose pose_one;
+    pose_one.label = "bottle_4";
 
-    pose_selector::LabeledPose pose_two;
-    pose_two.class_id = "dog";
-    pose_two.pose.header.frame_id = "map";
-
-    srv.request.poses.push_back(pose_one);
-    srv.request.poses.push_back(pose_two);
+    pose_selector::ObjectPose pose_two;
+    pose_two.label = "can_6";
+ 
+    srv.request.poses.objects.push_back(pose_one);
+    srv.request.poses.objects.push_back(pose_two);
 
     if (!client.call(srv))
     {

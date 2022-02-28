@@ -20,6 +20,7 @@ struct PoseEntry
 
     PoseEntry(){};
 
+    ///TODO: Handle objects that do not contain underscores or have semantic instance labels
     PoseEntry(pose_selector::ObjectPose pose_msg_){
         std::string::size_type n = pose_msg_.label.find("_");
         class_id = pose_msg_.label.substr(0,n);
@@ -34,14 +35,14 @@ class PoseSelector
     private:
     bool debug_;
     bool recording_enabled_;
-    ros::ServiceServer query_service;
-    ros::ServiceServer class_query_service;
-    ros::ServiceServer update_service;
-    ros::ServiceServer delete_service;
-    ros::ServiceServer save_service;
-    ros::ServiceServer record_activate_service;
-    ros::Subscriber pose_sub;
-    std::map<std::string,PoseEntry> pose_map;
+    ros::ServiceServer query_service_;
+    ros::ServiceServer class_query_service_;
+    ros::ServiceServer update_service_;
+    ros::ServiceServer delete_service_;
+    ros::ServiceServer save_service_;
+    ros::ServiceServer record_activate_service_;
+    ros::Subscriber pose_sub_;
+    std::map<std::string,PoseEntry> pose_map_;
 
     public:
     PoseSelector(ros::NodeHandle *nh)
@@ -49,25 +50,26 @@ class PoseSelector
         ros::NodeHandle pn("~");
         pn.param("debug", debug_, false);
         recording_enabled_ = false;
-        query_service = nh->advertiseService("/pose_selector_query", &PoseSelector::callback_pose_query, this);
-        class_query_service = nh->advertiseService("/pose_selector_class_query", &PoseSelector::callback_class_query, this);
-        update_service = nh->advertiseService("/pose_selector_update", &PoseSelector::callback_pose_update, this);
-        delete_service = nh->advertiseService("/pose_selector_delete", &PoseSelector::callback_pose_delete, this);
-        save_service = nh->advertiseService("/pose_selector_save", &PoseSelector::callback_save, this);
-        record_activate_service = nh->advertiseService("/pose_selector_activate", &PoseSelector::activate_recording, this );
-        pose_sub = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+        query_service_ = nh->advertiseService("/pose_selector_query", &PoseSelector::callbackPoseQuery, this);
+        class_query_service_ = nh->advertiseService("/pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
+        update_service_ = nh->advertiseService("/pose_selector_update", &PoseSelector::callbackPoseUpdate, this);
+        delete_service_ = nh->advertiseService("/pose_selector_delete", &PoseSelector::callbackPoseDelete, this);
+        save_service_ = nh->advertiseService("/pose_selector_save", &PoseSelector::callbackSave, this);
+        record_activate_service_ = nh->advertiseService("/pose_selector_activate", &PoseSelector::activateRecording, this );
+        ///TODO: set subscription topic as launch or config parameter 
+        pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
     }
 
     //Service to query for an item ID and to return the pose of the item
-    bool callback_pose_query(pose_selector::PoseQuery::Request &req, pose_selector::PoseQuery::Response &res)
+    bool callbackPoseQuery(pose_selector::PoseQuery::Request &req, pose_selector::PoseQuery::Response &res)
     {
         std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
         
         if(debug_) ROS_INFO_STREAM("Pose query service call: " << item_id);
 
-        std::map<std::string, PoseEntry>::iterator itr = pose_map.find(item_id);
+        std::map<std::string, PoseEntry>::iterator itr = pose_map_.find(item_id);
 
-        if(itr != pose_map.end())
+        if(itr != pose_map_.end())
         {
             res.pose_query_result = itr->second.pose_stamped;
         }else{
@@ -78,7 +80,7 @@ class PoseSelector
     }
 
     //Service to query all items of a certain class and to return the poses and ids of the items
-    bool callback_class_query(pose_selector::ClassQuery::Request &req, pose_selector::ClassQuery::Response &res)
+    bool callbackClassQuery(pose_selector::ClassQuery::Request &req, pose_selector::ClassQuery::Response &res)
     {
         std::string class_id = req.class_id;
 
@@ -86,7 +88,7 @@ class PoseSelector
 
         std::vector<pose_selector::ObjectPose> pose_result;
 
-        for (const auto& [key, value] : pose_map)
+        for (const auto& [key, value] : pose_map_)
         {
             if (value.class_id == class_id)
             {
@@ -100,18 +102,21 @@ class PoseSelector
     }
 
     //Service to update one or more poses
-    bool callback_pose_update(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
+    bool callbackPoseUpdate(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
     {
         
-        update_poses(req.poses);
+        updatePoses(req.poses);
 
-        if(debug_) print_poses();
+        if(debug_) printPoses();
 
         return true;
     }
 
-    void update_poses(pose_selector::ObjectList object_list)
+    void updatePoses(pose_selector::ObjectList object_list)
     {
+        ///TODO: Alternative ways to do conversion?
+        ///TODO: Catch if reference pose is not initialized
+
         //Get reference pose and convert to tf::Transform
         geometry_msgs::Point ref_pos = object_list.reference_pose.position;
         geometry_msgs::Quaternion ref_orient = object_list.reference_pose.orientation;
@@ -145,7 +150,7 @@ class PoseSelector
             i.pose.orientation.z = final_orientation.getZ();
             i.pose.orientation.w = final_orientation.getW();
 
-            pose_map.insert_or_assign(i.label, PoseEntry(i));
+            pose_map_.insert_or_assign(i.label, PoseEntry(i));
         }
     }
 
@@ -153,34 +158,32 @@ class PoseSelector
     {
         if(recording_enabled_)
         {
-            ROS_INFO_STREAM("Received Message");
-            update_poses(object_list);
-
-            if(debug_) print_poses();
+            updatePoses(object_list);
+            if(debug_) printPoses();
         }
     }
 
     //Service to delete an item
-    bool callback_pose_delete(pose_selector::PoseDelete::Request &req, pose_selector::PoseDelete::Response &res)
+    bool callbackPoseDelete(pose_selector::PoseDelete::Request &req, pose_selector::PoseDelete::Response &res)
     {
         
         std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
         
         if(debug_) ROS_INFO_STREAM("Delete pose service call: " << item_id);
 
-        pose_map.erase(item_id);
+        pose_map_.erase(item_id);
 
-        if(debug_) print_poses();
+        if(debug_) printPoses();
 
         return true;
     }
 
     //Save parameters to yaml file
-    bool callback_save(pose_selector::ConfigSave::Request &req, pose_selector::ConfigSave::Response &res)
+    bool callbackSave(pose_selector::ConfigSave::Request &req, pose_selector::ConfigSave::Response &res)
     {
         ros::NodeHandle pn("~");
 
-        for (const auto& [key, value] : pose_map)
+        for (const auto& [key, value] : pose_map_)
         {
             pn.setParam("poses/"+key+"/rw",value.pose_stamped.pose.orientation.w);
             pn.setParam("poses/"+key+"/rx",value.pose_stamped.pose.orientation.x);
@@ -207,7 +210,7 @@ class PoseSelector
     }
 
     //Load the poses from a yaml file
-    void load_poses()
+    void loadPoses()
     {
         ros::NodeHandle pn("~");
 
@@ -258,10 +261,10 @@ class PoseSelector
                 //struct PoseEntry pose_entry(i->second["class"],i->second["instance"],pose_item);
                 struct PoseEntry pose_entry(pose_item);
 
-                pose_map[i->first] = pose_entry;
+                pose_map_[i->first] = pose_entry;
             }
 
-            if(debug_) print_poses();
+            if(debug_) printPoses();
 
         pn.deleteParam("poses");
         }
@@ -269,17 +272,17 @@ class PoseSelector
     }
 
     //Iterate through the pose_map and print all items and their poses
-    void print_poses()
+    void printPoses()
     {
         ROS_INFO_STREAM("-------------------------------------------------------------------------------------------");
-        for(const auto& elem : pose_map)
+        for(const auto& elem : pose_map_)
         {
             ROS_INFO_STREAM("\nId: " << elem.first << " \nClass: " << elem.second.class_id << "\nInstance: " << elem.second.instance << "\n" << elem.second.pose_stamped);
         }
     }
 
-    /// TODO: Turn on/off recording 
-    bool activate_recording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
+    /// Turn on/off recording 
+    bool activateRecording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
     {
         recording_enabled_ = req.data;
         res.success = true;
@@ -292,7 +295,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "pose_selector_server");
     ros::NodeHandle nh;
     PoseSelector pc = PoseSelector(&nh);
-    pc.load_poses();
+    pc.loadPoses();
 
     ros::spin();
 
