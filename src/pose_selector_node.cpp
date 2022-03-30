@@ -3,6 +3,7 @@
 #include <std_srvs/Trigger.h>
 #include <std_srvs/SetBool.h>
 #include <tf/transform_datatypes.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2/convert.h>
 #include <pose_selector/ObjectList.h>
 #include <pose_selector/ObjectPose.h>
@@ -11,6 +12,7 @@
 #include <pose_selector/PoseUpdate.h>
 #include <pose_selector/PoseDelete.h>
 #include <pose_selector/ConfigSave.h>
+#include <regex>
 
 struct PoseEntry
 {
@@ -20,11 +22,9 @@ struct PoseEntry
 
     PoseEntry(){};
 
-    ///TODO: Handle objects that do not contain underscores or have semantic instance labels
     PoseEntry(pose_selector::ObjectPose pose_msg_){
-        std::string::size_type n = pose_msg_.label.find("_");
-        class_id = pose_msg_.label.substr(0,n);
-        instance = std::stoi(pose_msg_.label.substr(n+1));
+        class_id = pose_msg_.class_id;
+        instance = pose_msg_.instance_id;
         pose_stamped = pose_msg_;
     }
 
@@ -43,9 +43,11 @@ class PoseSelector
     ros::ServiceServer record_activate_service_;
     ros::Subscriber pose_sub_;
     std::map<std::string,PoseEntry> pose_map_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 
     public:
-    PoseSelector(ros::NodeHandle *nh)
+    PoseSelector(ros::NodeHandle *nh) : tf_listener_(tf_buffer_)
     {
         ros::NodeHandle pn("~");
         pn.param("debug", debug_, false);
@@ -115,14 +117,30 @@ class PoseSelector
     void updatePoses(pose_selector::ObjectList object_list)
     {
         ///TODO: Alternative ways to do conversion?
-        ///TODO: Catch if reference pose is not initialized
+        ///TODO: Should world frame always be used to perform lookup?
 
-        //Get reference pose and convert to tf::Transform
-        geometry_msgs::Point ref_pos = object_list.reference_pose.position;
-        geometry_msgs::Quaternion ref_orient = object_list.reference_pose.orientation;
+        //Perform TF lookup based on object_list.header.frame_id
+        std::string reference_tf = object_list.header.frame_id;
+
+        geometry_msgs::TransformStamped camera_to_world_tf;
+
+        try{
+            camera_to_world_tf = tf_buffer_.lookupTransform("world",reference_tf,ros::Time(0));
+            }
+        catch (tf2::TransformException &ex){
+            ROS_ERROR("%s", ex.what());
+            ros::Duration(1.0).sleep();
+        }
+        
+        //Convert camera_to_world_tf to tf::Transform
         tf::Transform camera_transform;
-        camera_transform.setOrigin(tf::Vector3(ref_pos.x,ref_pos.y,ref_pos.z));
-        camera_transform.setRotation(tf::Quaternion(ref_orient.x,ref_orient.y,ref_orient.z,ref_orient.w));
+        camera_transform.setOrigin(tf::Vector3(camera_to_world_tf.transform.translation.x,
+            camera_to_world_tf.transform.translation.y,
+            camera_to_world_tf.transform.translation.z));
+        camera_transform.setRotation(tf::Quaternion(camera_to_world_tf.transform.rotation.x,
+            camera_to_world_tf.transform.rotation.y,
+            camera_to_world_tf.transform.rotation.z,
+            camera_to_world_tf.transform.rotation.w));
 
         //Iterate through each object detected
         for (auto i: object_list.objects)
@@ -150,7 +168,7 @@ class PoseSelector
             i.pose.orientation.z = final_orientation.getZ();
             i.pose.orientation.w = final_orientation.getW();
 
-            pose_map_.insert_or_assign(i.label, PoseEntry(i));
+            pose_map_.insert_or_assign(i.class_id + "_" + std::to_string(i.instance_id), PoseEntry(i));
         }
     }
 
@@ -239,7 +257,6 @@ class PoseSelector
                 ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 
                 pose_selector::ObjectPose pose_item;
-                //geometry_msgs::PoseStamped pose_item;
                 
                 pose_item.pose.position.x = i->second["x"];
                 pose_item.pose.position.y = i->second["y"];
@@ -257,8 +274,18 @@ class PoseSelector
                 pose_item.max.x = i->second["max_x"];
                 pose_item.max.y = i->second["max_y"];
                 pose_item.max.z = i->second["max_z"];
-                pose_item.label = i->first;
-                //struct PoseEntry pose_entry(i->second["class"],i->second["instance"],pose_item);
+
+                std::cmatch m;
+                if(std::regex_search(i->first.c_str(), m, std::regex("(.+)_([0-9]+)")))
+                {
+                    pose_item.class_id = m[1];
+                    pose_item.instance_id = std::stoi(m[2]);
+                    ROS_INFO_STREAM("CLASS: " << pose_item.class_id);
+                }else{
+                    ROS_INFO_STREAM("Pose " << i->first << " not named correctly in configuration file");
+                continue;
+                }
+
                 struct PoseEntry pose_entry(pose_item);
 
                 pose_map_[i->first] = pose_entry;
@@ -277,7 +304,7 @@ class PoseSelector
         ROS_INFO_STREAM("-------------------------------------------------------------------------------------------");
         for(const auto& elem : pose_map_)
         {
-            ROS_INFO_STREAM("\nId: " << elem.first << " \nClass: " << elem.second.class_id << "\nInstance: " << elem.second.instance << "\n" << elem.second.pose_stamped);
+            ROS_INFO_STREAM("\nId: " << elem.first << "\n" << elem.second.pose_stamped);
         }
     }
 
