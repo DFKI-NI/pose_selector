@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
   tf2_ros
+  object_pose_msgs
 )
 
 add_service_files(
@@ -22,20 +23,15 @@ add_service_files(
   ConfigSave.srv
 )
 
-add_message_files(
-  FILES
-  ObjectList.msg
-  ObjectPose.msg
-)
-
 generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  object_pose_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy geometry_msgs std_msgs message_runtime roslib
+  CATKIN_DEPENDS roscpp rospy geometry_msgs std_msgs message_runtime roslib object_pose_msgs
 )
 
 include_directories(

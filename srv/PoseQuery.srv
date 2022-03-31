@@ -1,4 +1,4 @@
 string class_id
 int64 instance_id
 ---
-ObjectPose pose_query_result
+object_pose_msgs/ObjectPose pose_query_result

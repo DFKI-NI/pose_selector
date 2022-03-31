@@ -5,24 +5,23 @@
 #include <tf/transform_datatypes.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/convert.h>
-#include <pose_selector/ObjectList.h>
-#include <pose_selector/ObjectPose.h>
 #include <pose_selector/PoseQuery.h>
 #include <pose_selector/ClassQuery.h>
 #include <pose_selector/PoseUpdate.h>
 #include <pose_selector/PoseDelete.h>
 #include <pose_selector/ConfigSave.h>
+#include <object_pose_msgs/ObjectList.h>
 #include <regex>
 
 struct PoseEntry
 {
     std::string class_id;
     int instance;
-    pose_selector::ObjectPose pose_stamped;
+    object_pose_msgs::ObjectPose pose_stamped;
 
     PoseEntry(){};
 
-    PoseEntry(pose_selector::ObjectPose pose_msg_){
+    PoseEntry(object_pose_msgs::ObjectPose pose_msg_){
         class_id = pose_msg_.class_id;
         instance = pose_msg_.instance_id;
         pose_stamped = pose_msg_;
@@ -88,7 +87,7 @@ class PoseSelector
 
         if(debug_) ROS_INFO_STREAM("Class query service call: " << class_id);
 
-        std::vector<pose_selector::ObjectPose> pose_result;
+        std::vector<object_pose_msgs::ObjectPose> pose_result;
 
         for (const auto& [key, value] : pose_map_)
         {
@@ -114,7 +113,7 @@ class PoseSelector
         return true;
     }
 
-    void updatePoses(pose_selector::ObjectList object_list)
+    void updatePoses(object_pose_msgs::ObjectList object_list)
     {
         ///TODO: Alternative ways to do conversion?
         ///TODO: Should world frame always be used to perform lookup?
@@ -172,7 +171,7 @@ class PoseSelector
         }
     }
 
-    void poseCallback(pose_selector::ObjectList object_list)
+    void poseCallback(object_pose_msgs::ObjectList object_list)
     {
         if(recording_enabled_)
         {
@@ -256,7 +255,7 @@ class PoseSelector
                 ROS_ASSERT(i->second["rz"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 
-                pose_selector::ObjectPose pose_item;
+                object_pose_msgs::ObjectPose pose_item;
                 
                 pose_item.pose.position.x = i->second["x"];
                 pose_item.pose.position.y = i->second["y"];
