@@ -44,6 +44,7 @@ class PoseSelector
     std::map<std::string,PoseEntry> pose_map_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
+    std::vector<std::string> objects_of_interest_;
 
     public:
     PoseSelector(ros::NodeHandle *nh) : tf_listener_(tf_buffer_)
@@ -59,6 +60,18 @@ class PoseSelector
         record_activate_service_ = nh->advertiseService("/pose_selector_activate", &PoseSelector::activateRecording, this );
         ///TODO: set subscription topic as launch or config parameter 
         pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+
+        //Parse ROS parameter related to objects of interest (object classes not listed will be ignored)
+        XmlRpc::XmlRpcValue v;
+        pn.param("objects_of_interest", v, v);
+
+        for(int i =0;i<v.size();i++)
+        {
+            objects_of_interest_.push_back(v[i]);
+            ROS_INFO_STREAM("Object: " << v[i]);
+        }
+
+
     }
 
     //Service to query for an item ID and to return the pose of the item
@@ -144,6 +157,12 @@ class PoseSelector
         //Iterate through each object detected
         for (auto i: object_list.objects)
         {
+            //Check if current object class is not an object of interest
+            if(std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
+                ROS_INFO_STREAM(i.class_id << " not of interest");
+                continue;
+            }
+
             //Convert object pose to tf::Transform
             geometry_msgs::Point obj_pos = i.pose.position;
             geometry_msgs::Quaternion obj_orient = i.pose.orientation;
@@ -279,7 +298,6 @@ class PoseSelector
                 {
                     pose_item.class_id = m[1];
                     pose_item.instance_id = std::stoi(m[2]);
-                    ROS_INFO_STREAM("CLASS: " << pose_item.class_id);
                 }else{
                     ROS_INFO_STREAM("Pose " << i->first << " not named correctly in configuration file");
                 continue;
