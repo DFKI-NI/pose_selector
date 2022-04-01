@@ -45,9 +45,3 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
-
-# add_executable(update_test src/pose_update_tester.cpp)
-# add_dependencies(update_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(update_test
-#   ${catkin_LIBRARIES}
-# )

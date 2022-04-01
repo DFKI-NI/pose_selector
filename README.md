@@ -1,35 +1,17 @@
-# Pose_selector
+# pose_selector
 
-This package provides functionality for storing, querying, and modifying pose information of objects in simulation or real-world applications of the Mobipick robot. 
+This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications. 
+
+</br>
 
 ## Messages   
 
----
+The pose_selector uses the ObjectPose and ObjectList messages from [object_pose_msgs](https://git.ni.dfki.de/environment_representation/object_pose_msgs) package.
 
-The pose selector consists of two message types, ObjectPose and ObjectList (see below). ObjectPose contains a label string, pose, and vectors representing the object size, minimum points, and maximum points (for bounding box). The ObjectList contains header information, an array of ObjectPoses, and a reference pose for all poses in the ObjectList (i.e. this reference pose could be the global pose of the camera, and each ObjectPose is provided in reference to the camera pose).
-
----
-
-**ObjectPose.msg**
- 
-    string label  //label of object, e.g. 'screwdriver_1'
-    geometry_msgs/Pose pose //pose of object
-    geometry_msgs/Vector3 size //size of object
-    geometry_msgs/Vector3 min //minimum points of object bounding box
-    geometry_msgs/Vector3 max //maximum points of object bounding box
-
----
-
-**ObjectList.msg**
- 
-    std_msgs/Header header //header information
-    ObjectPose[] objects //array of ObjectPoses
-    geometry_msgs/Pose reference_pose //Reference pose for all ObjectPoses in objects
-
+</br>
 
 ## Services
 
----
 
 **ClassQuery.srv**
 
@@ -41,9 +23,10 @@ request:
 
 response:
 
-    ObjectPose[] poses
+    object_pose_msgs/ObjectPose[] poses
 
----
+</br>
+
 
 **ConfigSave.srv**
 
@@ -57,7 +40,8 @@ response:
 
     None
 
----
+</br>
+
 
 **PoseDelete.srv**
 
@@ -72,7 +56,7 @@ response:
 
     None
 
----
+</br>
 
 **PoseQuery.srv**
 
@@ -85,9 +69,10 @@ request:
 
 response:
 
-    ObjectPose pose_query_result
+    object_pose_msgs/ObjectPose pose_query_result
 
----
+
+</br>
 
 **PoseUpdate.srv**
 
@@ -95,17 +80,16 @@ This service updates the current pose information (either creating new entries o
 
 request:
 
-    ObjectList[] poses 
+    object_pose_msgs/ObjectList poses 
 
 response:
 
     None
 
----
+</br>
 
 ## Nodes
 
----
 
 ### pose_selector_node
 
@@ -113,12 +97,12 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Service Servers**
 
-* **pose_selector_query** (pose_selector::PoseQuery)
-* **pose_selector_class_query** (pose_selector::ClassQuery)
-* **pose_selector_update** (pose_selector::PoseUpdate)
-* **pose_selector_delete** (pose_selector::PoseDelete)
-* **pose_selector_save** (pose_selector::ConfigSave)
-* **pose_selector_activate** (std_srvs::SetBool)
+* **pose_selector_query** (pose_selector::PoseQuery, queries a specific class and instance)
+* **pose_selector_class_query** (pose_selector::ClassQuery, queries all objects of a specific class)
+* **pose_selector_update** (pose_selector::PoseUpdate, updates the pose of an object with given class/instance)
+* **pose_selector_delete** (pose_selector::PoseDelete, deletes the pose of a given object class/instance)
+* **pose_selector_save** (pose_selector::ConfigSave, save current poses to configuration file)
+* **pose_selector_activate** (std_srvs::SetBool, (de)activate pose_selector)
 
 **Subscribers**
 
@@ -126,13 +110,17 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Launch Files**
 
-* `test_node.launch`: launches the node with configuration parameters
+* `test_node.launch`: launches the node with empty objects_of_interest and demo configuration file.
+
+**Launch File Arguments**
+* `config_file`: name of configuration file to be loaded. File should be located in /config folder.
+* `objects_of_interest`: object classes to be saved in pose_selector. If this list is empty, all objects will be saved. If this list contains classes, any PoseUpdate call concerning a class not in objects_of_interest will be ignored.
 
 **Configuration Files**
 
 * `test_config.yaml`: testing configuration file
 
-**Configuration Parameters**
+**Configuration File Parameters**
 
 * **debug** (bool default: false, set to true to turn on debug messages)
 * **poses** (struct, setup for pose storage. See configuration files for examples)
@@ -153,17 +141,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 * **poses/\<name\>/max_y** (double, object's bounding box maximum position on y-axis)
 * **poses/\<name\>/max_z** (double, object's bounding box maximum position on z-axis)
 
----
-
-### pose_update_tester
-
-This node can be used to test the update functionalities of the pose_selector_node.
-
-**Service Clients**
-
-* **pose_selector_update** (pose_selector::PoseUpdate)
-
----
+</br>
 
 ## Example Usage
 
@@ -174,14 +152,21 @@ source devel/setup.bash
 roslaunch pose_selector test_node.launch
 ```
 
-If `debug` parameter is set to `True`, then you should be presented with the current pose information obtained from the configuration file.
+If `debug` parameter is set to `True`, then you should be presented with the current pose information obtained from loading the configuration file.
 
-While the pose_selector_node is running, execute the following in a new terminal:
+While the pose_selector_node is running, execute the following in a new terminal to activate updating of pose_selector:
 
 ```
-source devel/setup.bash
-rosrun pose_selector update_test
+rosservice call /pose_selector_activate "data: true"
 ```
 
-After running update_test, you should see an updated list of poses in the pose_selector terminal.
+Once the pose selector is activated, you may trigger update/query/delete service calls to test each functionality. (You can use tab completion when calling a service to auto-fill the service message). 
 
+For example, to query all objects of class screwdriver, execute the following:
+
+```
+rosservice call /pose_selector_class_query "class_id: 'screwdriver'"
+```
+You should then be presented with the pose information of all objects of class screwdriver.
+
+</br>
