@@ -68,7 +68,6 @@ class PoseSelector
         for(int i =0;i<v.size();i++)
         {
             objects_of_interest_.push_back(v[i]);
-            ROS_INFO_STREAM("Object: " << v[i]);
         }
 
 
@@ -158,8 +157,8 @@ class PoseSelector
         for (auto i: object_list.objects)
         {
             //Check if current object class is not an object of interest
-            if(std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
-                ROS_INFO_STREAM(i.class_id << " not of interest");
+            if(objects_of_interest_.size()>0 && std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
+                if(debug_) ROS_INFO_STREAM("Class: " << i.class_id << " not of interest, ignoring associated pose");
                 continue;
             }
 
