@@ -2,6 +2,49 @@
 
 This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications. 
 
+## Installation
+
+1. This installation tutorial relies on ssh key authentication, if you haven't uploaded ssh keys to your github account, please follow this [link](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/connecting-to-github-with-ssh)
+
+
+
+2. Install ros noetic ([link](http://wiki.ros.org/noetic/Installation/Ubuntu))
+
+
+3. Install python catkin tools
+
+        sudo apt-get install python3-osrf-pycommon python3-catkin-tools
+
+4. Create catkin_ws
+
+        cd $HOME
+        mkdir -p ros_ws/pose_selector_ws/src
+        cd $HOME/ros_ws/pose_selector_ws
+        source /opt/ros/noetic/setup.bash
+        catkin build
+
+5. Clone repo
+
+        cd $HOME/ros_ws/pose_selector_ws/src
+        git clone git@git.ni.dfki.de:environment_representation/pose_selector.git
+
+6. Import dependency repositories
+
+        vcs import < pose_selector/my.repos
+
+7. Install dependencies
+
+        sudo apt install python3-rosdep
+        cd $HOME/ros_ws/pose_selector_ws
+        rosdep update
+        rosdep install -r --from-paths ./ -i -y --rosdistro noetic
+
+8. Build workspace
+
+        cd $HOME/ros_ws/pose_selector_ws
+        source $HOME/ros_ws/pose_selector_ws/devel/setup.bash
+        catkin build
+
 </br>
 
 ## Messages   
