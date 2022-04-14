@@ -65,12 +65,15 @@ class PoseSelector
         XmlRpc::XmlRpcValue v;
         pn.param("objects_of_interest", v, v);
 
-        for(int i =0;i<v.size();i++)
+        if (v.getType() == XmlRpc::XmlRpcValue::TypeArray)
         {
-            objects_of_interest_.push_back(v[i]);
+          for(int i =0;i<v.size();i++)
+          {
+              objects_of_interest_.push_back(v[i]);
+          }
+        } else {
+          ROS_ERROR("Parameter not set, or not an array: %s", pn.resolveName("objects_of_interest").c_str());
         }
-
-
     }
 
     //Service to query for an item ID and to return the pose of the item
