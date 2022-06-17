@@ -45,12 +45,14 @@ class PoseSelector
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
     std::vector<std::string> objects_of_interest_;
+    std::string global_reference_frame_;
 
     public:
     PoseSelector(ros::NodeHandle *nh) : tf_listener_(tf_buffer_)
     {
         ros::NodeHandle pn("~");
         pn.param("debug", debug_, false);
+        pn.param<std::string>("global_reference_frame", global_reference_frame_, std::string("world"));
         recording_enabled_ = false;
         query_service_ = nh->advertiseService("/pose_selector_query", &PoseSelector::callbackPoseQuery, this);
         class_query_service_ = nh->advertiseService("/pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
@@ -139,7 +141,7 @@ class PoseSelector
         geometry_msgs::TransformStamped camera_to_world_tf;
 
         try{
-            camera_to_world_tf = tf_buffer_.lookupTransform("world",reference_tf,ros::Time(0));
+            camera_to_world_tf = tf_buffer_.lookupTransform(this->global_reference_frame_,reference_tf,ros::Time(0));
             }
         catch (tf2::TransformException &ex){
             ROS_ERROR("%s", ex.what());
