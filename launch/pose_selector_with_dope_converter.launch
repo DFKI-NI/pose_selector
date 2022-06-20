@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find pose_selector)/launch/dope_converter.launch"/>
+
+    <remap from="/mobipick/gripper_astra/rgb/logical_image" to="/dope_converter_poses"/>
+    
+    <include file="$(find pose_selector)/launch/test_node.launch"/>
+
+</launch>

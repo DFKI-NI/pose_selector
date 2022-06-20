@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   tf2_ros
   object_pose_msgs
+  vision_msgs
 )
 
 add_service_files(
@@ -31,7 +32,7 @@ generate_messages(
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy geometry_msgs std_msgs message_runtime roslib object_pose_msgs
+  CATKIN_DEPENDS roscpp rospy geometry_msgs std_msgs message_runtime roslib object_pose_msgs vision_msgs
 )
 
 include_directories(
@@ -45,3 +46,10 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
+
+add_executable(dope_converter_node src/dope_to_pose_node.cpp)
+target_link_libraries(dope_converter_node
+  ${catkin_LIBRARIES}
+)
+add_dependencies(dope_converter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+

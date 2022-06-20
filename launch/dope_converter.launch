@@ -1,0 +1,10 @@
+<launch>
+    <arg name = "config" default="$(find pose_selector)/config/dope_converter_test.yaml" doc="Path to parameter confid file"/>
+
+    <remap from="/dope_output" to="/mobipick/dope/detected_objects" />
+
+    <node pkg="pose_selector" type="dope_converter_node" name="dope_converter_node" output="screen">
+        <rosparam command="load" file="$(arg config)" />
+    </node>
+
+</launch>
