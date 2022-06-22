@@ -149,11 +149,12 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Subscribers**
 
-* **pose_sub** (pose_selector::ObjectList)
+* **pose_sub_** (pose_selector::ObjectList)
 
 **Launch Files**
 
-* `test_node.launch`: launches the node with empty objects_of_interest and demo configuration file.
+* `pose_selector_default.launch`: launches the node with empty objects_of_interest and empty initial poses
+* `pose_selector_demo.launch`: launches the node with empty objects_of_interest and demo configuration file of demonstration poses.
 
 **Launch File Arguments**
 * `config_file`: name of configuration file to be loaded. File should be located in /config folder.
@@ -161,7 +162,8 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Configuration Files**
 
-* `test_config.yaml`: testing configuration file
+* `pose_selector_default.yaml`: default configuration with no debug messages (debug=false)
+* `pose_selector_demo.yaml`: testing configuration file with example prior-knowledge poses to initialize the pose_selector with, and debug messages
 
 **Configuration File Parameters**
 
@@ -186,13 +188,39 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 </br>
 
+### dope_converter_node
+
+The dope_converter_node converts messages of type vision_msgs/Detection3DArray into object_pose_msgs/ObjectList type. This allows for the use of pose_selector to store poses of objects detected by an object detection/pose estimation (such as DOPE).
+
+**Subscribers**
+
+* **dope_sub_** (vision_msgs::Detection3DArray, default topic: `/dope_output`)
+
+**Publishers**
+
+* **converter_pub_** (object_pose_msgs::ObjectList, default topic: `/dope_converter_poses`)
+
+**Launch Files**
+
+* `dope_converter.launch`: loads the class IDs from the given configuration (i.e. same as in DOPE) and launches the converter node.
+
+**Launch File Arguments**
+
+* `config`: name of configuration file to be loaded. Should be the same class IDs parameters used in DOPE.
+
+**Configuration Files**
+
+* `dope_converter_test.yaml`: demonstration configuration for the dope converter
+
+</br>
+
 ## Example Usage
 
 In one terminal, launch the pose_selector_node by executing the following:
 
 ```
 source devel/setup.bash
-roslaunch pose_selector test_node.launch
+roslaunch pose_selector pose_selector_demo.launch
 ```
 
 If `debug` parameter is set to `True`, then you should be presented with the current pose information obtained from loading the configuration file.

@@ -1,6 +1,6 @@
 <launch>
     <arg name="objects_of_interest" value="[]"/>
-    <arg name="config_file" value="test_config.yaml"/>
+    <arg name="config_file" value="pose_selector_demo.yaml"/>
     <arg name="global_reference_frame" value="map" />
 
     <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">

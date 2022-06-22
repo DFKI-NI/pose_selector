@@ -258,7 +258,7 @@ class PoseSelector
         
         if (!pn.getParam("poses",poses_list))
         {
-            ROS_ERROR_STREAM("Failed to get initial poses");
+            ROS_WARN_STREAM("Pose_selector failed to get initial poses from configuration file. You may ignore this message if no prior poses are needed.");
         }else
         {
             //Check that main poses parameter is a structure
