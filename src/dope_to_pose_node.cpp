@@ -68,7 +68,7 @@ class DopeConverter
 
             //set instance id to zero for situations where only one instance per class is present
             ///TODO: Update this if necessary
-            new_pose.instance_id = 0;
+            new_pose.instance_id = 1;
 
             //save object pose and bbox size
             new_pose.pose = i.results[0].pose.pose;
