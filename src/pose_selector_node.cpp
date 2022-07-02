@@ -54,12 +54,12 @@ class PoseSelector
         pn.param("debug", debug_, false);
         pn.param<std::string>("global_reference_frame", global_reference_frame_, std::string("world"));
         recording_enabled_ = false;
-        query_service_ = nh->advertiseService("/pose_selector_query", &PoseSelector::callbackPoseQuery, this);
-        class_query_service_ = nh->advertiseService("/pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
-        update_service_ = nh->advertiseService("/pose_selector_update", &PoseSelector::callbackPoseUpdate, this);
-        delete_service_ = nh->advertiseService("/pose_selector_delete", &PoseSelector::callbackPoseDelete, this);
-        save_service_ = nh->advertiseService("/pose_selector_save", &PoseSelector::callbackSave, this);
-        record_activate_service_ = nh->advertiseService("/pose_selector_activate", &PoseSelector::activateRecording, this );
+        query_service_ = pn.advertiseService("pose_selector_query", &PoseSelector::callbackPoseQuery, this);
+        class_query_service_ = pn.advertiseService("pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
+        update_service_ = pn.advertiseService("pose_selector_update", &PoseSelector::callbackPoseUpdate, this);
+        delete_service_ = pn.advertiseService("pose_selector_delete", &PoseSelector::callbackPoseDelete, this);
+        save_service_ = pn.advertiseService("pose_selector_save", &PoseSelector::callbackSave, this);
+        record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
         ///TODO: set subscription topic as launch or config parameter 
         pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
 
