@@ -161,6 +161,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 * **pose_selector_save** (pose_selector::ConfigSave, save current poses to configuration file)
 * **pose_selector_activate** (std_srvs::SetBool, (de)activate pose_selector)
 * **pose_selector_get_all** (pose_selector::GetPoses, retrieves all currently saved poses)
+* **pose_selector_clear** (std_srvs::Trigger, clears all current content of the pose_selector)
 
 **Subscribers**
 

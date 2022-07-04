@@ -42,6 +42,7 @@ class PoseSelector
     ros::ServiceServer save_service_;
     ros::ServiceServer get_all_poses_service_;
     ros::ServiceServer record_activate_service_;
+    ros::ServiceServer pose_selector_clear_;
     ros::Subscriber pose_sub_;
     std::map<std::string,PoseEntry> pose_map_;
     tf2_ros::Buffer tf_buffer_;
@@ -63,6 +64,7 @@ class PoseSelector
         save_service_ = pn.advertiseService("pose_selector_save", &PoseSelector::callbackSave, this);
         record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
         get_all_poses_service_ = pn.advertiseService("pose_selector_get_all", &PoseSelector::getAllPoses, this);
+        pose_selector_clear_ = pn.advertiseService("pose_selector_clear", &PoseSelector::clearPoseSelector, this);
         ///TODO: set subscription topic as launch or config parameter 
         pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
 
@@ -354,6 +356,13 @@ class PoseSelector
 
         res.poses = pose_list;
 
+        return true;
+    }
+
+    bool clearPoseSelector(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+    {
+        pose_map_.clear();
+        res.success = true;
         return true;
     }
 
