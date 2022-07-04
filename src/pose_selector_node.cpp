@@ -10,6 +10,7 @@
 #include <pose_selector/PoseUpdate.h>
 #include <pose_selector/PoseDelete.h>
 #include <pose_selector/ConfigSave.h>
+#include <pose_selector/GetPoses.h>
 #include <object_pose_msgs/ObjectList.h>
 #include <regex>
 
@@ -39,6 +40,7 @@ class PoseSelector
     ros::ServiceServer update_service_;
     ros::ServiceServer delete_service_;
     ros::ServiceServer save_service_;
+    ros::ServiceServer get_all_poses_service_;
     ros::ServiceServer record_activate_service_;
     ros::Subscriber pose_sub_;
     std::map<std::string,PoseEntry> pose_map_;
@@ -60,6 +62,7 @@ class PoseSelector
         delete_service_ = pn.advertiseService("pose_selector_delete", &PoseSelector::callbackPoseDelete, this);
         save_service_ = pn.advertiseService("pose_selector_save", &PoseSelector::callbackSave, this);
         record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
+        get_all_poses_service_ = pn.advertiseService("pose_selector_get_all", &PoseSelector::getAllPoses, this);
         ///TODO: set subscription topic as launch or config parameter 
         pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
 
@@ -336,6 +339,24 @@ class PoseSelector
         res.success = true;
         return true;
     }
+
+    /// Get all current poses stored in pose_selector 
+    bool getAllPoses(pose_selector::GetPoses::Request &req, pose_selector::GetPoses::Response &res)
+    {
+        object_pose_msgs::ObjectList pose_list;
+
+        for(const auto& elem : pose_map_)
+        {
+            pose_list.objects.push_back(elem.second.pose_stamped);
+        }
+
+        pose_list.header.frame_id = global_reference_frame_;
+
+        res.poses = pose_list;
+
+        return true;
+    }
+
 };
 
 int main(int argc, char **argv)

@@ -131,6 +131,20 @@ response:
 
 </br>
 
+**GetPoses.srv**
+
+This service retrieves all currently saved pose information. The response is an ObjectList containing all pose information.
+
+request:
+
+    None 
+
+response:
+
+    object_pose_msgs/ObjectList poses
+
+</br>
+
 ## Nodes
 
 
@@ -146,6 +160,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 * **pose_selector_delete** (pose_selector::PoseDelete, deletes the pose of a given object class/instance)
 * **pose_selector_save** (pose_selector::ConfigSave, save current poses to configuration file)
 * **pose_selector_activate** (std_srvs::SetBool, (de)activate pose_selector)
+* **pose_selector_get_all** (pose_selector::GetPoses, retrieves all currently saved poses)
 
 **Subscribers**
 
