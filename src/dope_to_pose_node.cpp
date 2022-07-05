@@ -7,14 +7,17 @@ class DopeConverter
 {
     private:
     bool debug_;
+    ros::NodeHandle *nh_;
     std::map<int,std::string> dope_ids_;
     ros::Subscriber dope_sub_;
     ros::Publisher converter_pub_;
+    std::mutex connect_mutex_;
 
     public:
     DopeConverter(ros::NodeHandle *nh)
     {
         ros::NodeHandle pn("~");
+        nh_ = nh;
         pn.param("debug", debug_, false);
 
         //load in dope class ids
@@ -37,11 +40,10 @@ class DopeConverter
             }
         }
 
-        //subscriber to dope output
-        dope_sub_ = nh->subscribe("/dope_output",1,&DopeConverter::dopeCallback,this);
-
         //converted messages to be published 
-        converter_pub_ = nh->advertise<object_pose_msgs::ObjectList>("/dope_converter_poses",1000);
+        std::lock_guard<std::mutex> lock(connect_mutex_); 
+        ros::SubscriberStatusCallback connect_cb = boost::bind(&DopeConverter::connectCb,this);
+        converter_pub_ = nh->advertise<object_pose_msgs::ObjectList>("/dope_converter_poses",1000,connect_cb,connect_cb);
     }
 
     void dopeCallback(const vision_msgs::Detection3DArray::ConstPtr& msg)
@@ -80,6 +82,26 @@ class DopeConverter
         converted_msg.objects = converted_poses;
 
         converter_pub_.publish(converted_msg);
+    }
+
+    //Callback for connection/disconnections to DOPE converter output topic
+    void connectCb()
+    {
+        if(debug_) ROS_INFO_STREAM("Dope Converter Connect Callback Called");
+  
+        std::lock_guard<std::mutex> lock(connect_mutex_);
+
+        //If there are no subscribers to dope converter, then unsubscribe from DOPE messages
+        if (converter_pub_.getNumSubscribers() == 0)
+        {
+            if(debug_) ROS_INFO_STREAM("No DOPE converter subscribers, shutting down DOPE subcriber");
+            dope_sub_.shutdown();
+            
+        }else if (!dope_sub_)
+        {
+            if(debug_) ROS_INFO_STREAM("Starting up DOPE subscriber");
+            dope_sub_ = nh_->subscribe("/dope_output",1,&DopeConverter::dopeCallback,this);
+        }
     }
 
 };

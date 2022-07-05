@@ -49,6 +49,7 @@ class PoseSelector
     tf2_ros::TransformListener tf_listener_;
     std::vector<std::string> objects_of_interest_;
     std::string global_reference_frame_;
+    ros::NodeHandle *nh_;
 
     public:
     PoseSelector(ros::NodeHandle *nh) : tf_listener_(tf_buffer_)
@@ -65,8 +66,8 @@ class PoseSelector
         record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
         get_all_poses_service_ = pn.advertiseService("pose_selector_get_all", &PoseSelector::getAllPoses, this);
         pose_selector_clear_ = pn.advertiseService("pose_selector_clear", &PoseSelector::clearPoseSelector, this);
-        ///TODO: set subscription topic as launch or config parameter 
-        pose_sub_ = nh->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+
+        nh_ = nh;
 
         //Parse ROS parameter related to objects of interest (object classes not listed will be ignored)
         XmlRpc::XmlRpcValue v;
@@ -201,11 +202,10 @@ class PoseSelector
 
     void poseCallback(object_pose_msgs::ObjectList object_list)
     {
-        if(recording_enabled_)
-        {
-            updatePoses(object_list);
-            if(debug_) printPoses();
-        }
+
+        updatePoses(object_list);
+        if(debug_) printPoses();
+
     }
 
     //Service to delete an item
@@ -337,7 +337,19 @@ class PoseSelector
     /// Turn on/off recording 
     bool activateRecording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
     {
-        recording_enabled_ = req.data;
+        bool recording_activated = req.data;
+
+        //Activate or deactivate subscriber
+        if(recording_activated)
+        {
+            pose_sub_ = nh_->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+            if(debug_) ROS_INFO_STREAM("Pose_selector activated");
+
+        }else{
+            pose_sub_.shutdown();
+            if(debug_) ROS_INFO_STREAM("Pose_selector deactivated");
+        }
+
         res.success = true;
         return true;
     }
