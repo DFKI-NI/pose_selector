@@ -49,6 +49,7 @@ class PoseSelector
     tf2_ros::TransformListener tf_listener_;
     std::vector<std::string> objects_of_interest_;
     std::string global_reference_frame_;
+    std::string subscribe_topic_;
     ros::NodeHandle *nh_;
 
     public:
@@ -57,6 +58,7 @@ class PoseSelector
         ros::NodeHandle pn("~");
         pn.param("debug", debug_, false);
         pn.param<std::string>("global_reference_frame", global_reference_frame_, std::string("world"));
+        pn.param<std::string>("subscribe_topic", subscribe_topic_, std::string("/mobipick/gripper_astra/rgb/logical_image"));
         recording_enabled_ = false;
         query_service_ = pn.advertiseService("pose_selector_query", &PoseSelector::callbackPoseQuery, this);
         class_query_service_ = pn.advertiseService("pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
@@ -342,7 +344,8 @@ class PoseSelector
         //Activate or deactivate subscriber
         if(recording_activated)
         {
-            pose_sub_ = nh_->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+            pose_sub_ = nh_->subscribe(subscribe_topic_,1,&PoseSelector::poseCallback, this);
+
             if(debug_) ROS_INFO_STREAM("Pose_selector activated");
 
         }else{

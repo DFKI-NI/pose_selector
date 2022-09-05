@@ -4,8 +4,9 @@
     <include file="$(find pose_selector)/launch/dope_converter.launch"/>
 
     <!-- Pose selector -->
-    <!-- Remap pose_selector subscriber to dope converter output -->
-    <remap from="/mobipick/gripper_astra/rgb/logical_image" to="/dope_converter_poses"/>
-    <include file="$(find pose_selector)/launch/pose_selector.launch"/>
+    <!-- Set pose_selector subscriber to dope converter output -->
+    <include file="$(find pose_selector)/launch/pose_selector.launch">
+        <arg name="subscribe_topic" value="/dope_converter_poses"/>
+    </include>
 
 </launch>

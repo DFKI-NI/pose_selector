@@ -2,11 +2,13 @@
     <arg name="objects_of_interest" value="[]"/> 
     <arg name="config_file" value="pose_selector_default.yaml"/> 
     <arg name="global_reference_frame" value="map" />
+    <arg name="subscribe_topic" default="/mobipick/gripper_astra/rgb/logical_image"/>
 
     <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">
         <rosparam command="load" file="$(find pose_selector)/config/$(arg config_file)" />
         <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
         <param name="global_reference_frame" type="str" value="$(arg global_reference_frame)"/>
+        <param name="subscribe_topic" type="str" value="$(arg subscribe_topic)"/>
     </node>
     
 </launch>
