@@ -1,6 +1,6 @@
 # pose_selector
 
-This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications. 
+This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications.
 
 ## Installation
 
@@ -47,7 +47,7 @@ This package provides functionality for storing, querying, and modifying pose in
 
 </br>
 
-## Messages   
+## Messages
 
 The pose_selector uses the ObjectPose and ObjectList messages from [object_pose_msgs](https://git.ni.dfki.de/environment_representation/object_pose_msgs) package.
 
@@ -60,7 +60,7 @@ The pose_selector uses the ObjectPose and ObjectList messages from [object_pose_
 
 Given a class type as a request, this service will return arrays of ObjectPoses corresponding to all instances of the requested class type.
 
-request: 
+request:
 
     string class_id
 
@@ -123,7 +123,7 @@ This service updates the current pose information (either creating new entries o
 
 request:
 
-    object_pose_msgs/ObjectList poses 
+    object_pose_msgs/ObjectList poses
 
 response:
 
@@ -137,7 +137,7 @@ This service retrieves all currently saved pose information. The response is an 
 
 request:
 
-    None 
+    None
 
 response:
 
@@ -247,7 +247,7 @@ While the pose_selector_node is running, execute the following in a new terminal
 rosservice call /pose_selector_activate "data: true"
 ```
 
-Once the pose selector is activated, you may trigger update/query/delete service calls to test each functionality. (You can use tab completion when calling a service to auto-fill the service message). 
+Once the pose selector is activated, you may trigger update/query/delete service calls to test each functionality. (You can use tab completion when calling a service to auto-fill the service message).
 
 For example, to query all objects of class screwdriver, execute the following:
 

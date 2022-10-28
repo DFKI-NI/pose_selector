@@ -88,7 +88,7 @@ class PoseSelector
     bool callbackPoseQuery(pose_selector::PoseQuery::Request &req, pose_selector::PoseQuery::Response &res)
     {
         std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
-        
+
         if(debug_) ROS_INFO_STREAM("Pose query service call: " << item_id);
 
         std::map<std::string, PoseEntry>::iterator itr = pose_map_.find(item_id);
@@ -128,7 +128,7 @@ class PoseSelector
     //Service to update one or more poses
     bool callbackPoseUpdate(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
     {
-        
+
         updatePoses(req.poses);
 
         if(debug_) printPoses();
@@ -153,7 +153,7 @@ class PoseSelector
             ROS_ERROR("%s", ex.what());
             ros::Duration(1.0).sleep();
         }
-        
+
         //Convert camera_to_world_tf to tf::Transform
         tf::Transform camera_transform;
         camera_transform.setOrigin(tf::Vector3(camera_to_world_tf.transform.translation.x,
@@ -211,9 +211,9 @@ class PoseSelector
     //Service to delete an item
     bool callbackPoseDelete(pose_selector::PoseDelete::Request &req, pose_selector::PoseDelete::Response &res)
     {
-        
+
         std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
-        
+
         if(debug_) ROS_INFO_STREAM("Delete pose service call: " << item_id);
 
         pose_map_.erase(item_id);
@@ -260,7 +260,7 @@ class PoseSelector
         ros::NodeHandle pn("~");
 
         XmlRpc::XmlRpcValue poses_list;
-        
+
         if (!pn.getParam("poses",poses_list))
         {
             ROS_WARN_STREAM("Pose_selector failed to get initial poses from configuration file. You may ignore this message if no prior poses are needed.");
@@ -282,9 +282,9 @@ class PoseSelector
                 ROS_ASSERT(i->second["ry"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["rz"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
                 ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                
+
                 object_pose_msgs::ObjectPose pose_item;
-                
+
                 pose_item.pose.position.x = i->second["x"];
                 pose_item.pose.position.y = i->second["y"];
                 pose_item.pose.position.z = i->second["z"];
@@ -334,7 +334,7 @@ class PoseSelector
         }
     }
 
-    /// Turn on/off recording 
+    /// Turn on/off recording
     bool activateRecording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
     {
         bool recording_activated = req.data;
@@ -354,7 +354,7 @@ class PoseSelector
         return true;
     }
 
-    /// Get all current poses stored in pose_selector 
+    /// Get all current poses stored in pose_selector
     bool getAllPoses(pose_selector::GetPoses::Request &req, pose_selector::GetPoses::Response &res)
     {
         object_pose_msgs::ObjectList pose_list;

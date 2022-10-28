@@ -53,4 +53,3 @@ target_link_libraries(dope_converter_node
   ${catkin_LIBRARIES}
 )
 add_dependencies(dope_converter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-

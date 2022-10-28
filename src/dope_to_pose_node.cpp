@@ -40,8 +40,8 @@ class DopeConverter
             }
         }
 
-        //converted messages to be published 
-        std::lock_guard<std::mutex> lock(connect_mutex_); 
+        //converted messages to be published
+        std::lock_guard<std::mutex> lock(connect_mutex_);
         ros::SubscriberStatusCallback connect_cb = boost::bind(&DopeConverter::connectCb,this);
         converter_pub_ = nh->advertise<object_pose_msgs::ObjectList>("/dope_converter_poses",1000,connect_cb,connect_cb);
     }
@@ -88,7 +88,7 @@ class DopeConverter
     void connectCb()
     {
         if(debug_) ROS_INFO_STREAM("Dope Converter Connect Callback Called");
-  
+
         std::lock_guard<std::mutex> lock(connect_mutex_);
 
         //If there are no subscribers to dope converter, then unsubscribe from DOPE messages
@@ -96,7 +96,7 @@ class DopeConverter
         {
             if(debug_) ROS_INFO_STREAM("No DOPE converter subscribers, shutting down DOPE subcriber");
             dope_sub_.shutdown();
-            
+
         }else if (!dope_sub_)
         {
             if(debug_) ROS_INFO_STREAM("Starting up DOPE subscriber");
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     DopeConverter node = DopeConverter(&nh);
-    
+
     ros::spin();
 
     return 0;

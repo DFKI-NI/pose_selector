@@ -1,5 +1,5 @@
 debug: true
-poses: 
+poses:
   can_1:
     x: 0.1
     y: 0.2
@@ -68,4 +68,3 @@ poses:
     max_x: 11.0
     max_y: 12.0
     max_z: 13.0
-
