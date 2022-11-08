@@ -1,3 +1,33 @@
+/*
+ * Copyright (c) 2022, Amos Smith (DFKI GmbH) and contributors
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of the the copyright holder nor the names of its
+ *      contributors may be used to endorse or promote products derived from
+ *      this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "ros/ros.h"
 #include <ros/package.h>
 #include <object_pose_msgs/ObjectList.h>
@@ -40,8 +70,8 @@ class DopeConverter
             }
         }
 
-        //converted messages to be published 
-        std::lock_guard<std::mutex> lock(connect_mutex_); 
+        //converted messages to be published
+        std::lock_guard<std::mutex> lock(connect_mutex_);
         ros::SubscriberStatusCallback connect_cb = boost::bind(&DopeConverter::connectCb,this);
         converter_pub_ = nh->advertise<object_pose_msgs::ObjectList>("/dope_converter_poses",1000,connect_cb,connect_cb);
     }
@@ -88,7 +118,7 @@ class DopeConverter
     void connectCb()
     {
         if(debug_) ROS_INFO_STREAM("Dope Converter Connect Callback Called");
-  
+
         std::lock_guard<std::mutex> lock(connect_mutex_);
 
         //If there are no subscribers to dope converter, then unsubscribe from DOPE messages
@@ -96,7 +126,7 @@ class DopeConverter
         {
             if(debug_) ROS_INFO_STREAM("No DOPE converter subscribers, shutting down DOPE subcriber");
             dope_sub_.shutdown();
-            
+
         }else if (!dope_sub_)
         {
             if(debug_) ROS_INFO_STREAM("Starting up DOPE subscriber");
@@ -112,7 +142,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     DopeConverter node = DopeConverter(&nh);
-    
+
     ros::spin();
 
     return 0;

@@ -8,5 +8,5 @@
         <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
         <param name="global_reference_frame" type="str" value="$(arg global_reference_frame)"/>
     </node>
-    
+
 </launch>
