@@ -2,9 +2,9 @@
 <package format="2">
   <name>pose_selector</name>
   <version>0.0.0</version>
-  <description>The pose_selector package</description>
+  <description>This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications.</description>
 
-  <maintainer email="amos@todo.todo">amos</maintainer>
+  <maintainer email="amos.smith@dfki.de">Amos Smith</maintainer>
 
   <license>BSD</license>
 
