@@ -1,0 +1,53 @@
+debug: true
+poses:
+  cube_1:
+    x: 0.1
+    y: 1.2
+    z: 0.3
+    rx: 0.0
+    ry: 0.1
+    rz: 0.1
+    rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
+  sphere_1:
+    x: -0.4
+    y: -0.6
+    z: -0.8
+    rx: 0.1
+    ry: 0.0
+    rz: 0.0
+    rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0
+  cylinder_1:
+    x: -1.4
+    y: -1.6
+    z: -1.8
+    rx: 0.1
+    ry: 0.0
+    rz: 0.0
+    rw: 1.0
+    size_x: 5.0
+    size_y: 6.0
+    size_z: 7.0
+    min_x: 8.0
+    min_y: 9.0
+    min_z: 10.0
+    max_x: 11.0
+    max_y: 12.0
+    max_z: 13.0

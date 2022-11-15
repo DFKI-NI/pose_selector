@@ -1,0 +1,6 @@
+# optional: if you provide a mesh of the object here, a mesh marker will be published for visualization in RViz
+meshes: {
+  "sphere":                  "package://pose_selector/example_meshes/sphere.stl",
+  "cube":                    "package://pose_selector/example_meshes/cube.stl",
+  "cylinder":                "package://pose_selector/example_meshes/cylinder.stl",
+}
