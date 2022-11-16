@@ -174,7 +174,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Subscribers**
 
-* **pose_sub_** (pose_selector::ObjectList)
+* **pose_sub_** (pose_selector::ObjectList, default topic: `/logical_image`)
 
 **Launch Files**
 

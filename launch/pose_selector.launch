@@ -3,6 +3,8 @@
     <arg name="config_file" value="pose_selector_default.yaml"/>
     <arg name="global_reference_frame" value="map" />
 
+    <remap from="/logical_image" to="/mobipick/gripper_astra/rgb/logical_image"/>
+
     <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">
         <rosparam command="load" file="$(find pose_selector)/config/$(arg config_file)" />
         <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>

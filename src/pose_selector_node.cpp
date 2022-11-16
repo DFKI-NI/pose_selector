@@ -372,7 +372,7 @@ class PoseSelector
         //Activate or deactivate subscriber
         if(recording_activated)
         {
-            pose_sub_ = nh_->subscribe("/mobipick/gripper_astra/rgb/logical_image",1,&PoseSelector::poseCallback, this);
+            pose_sub_ = nh_->subscribe("/logical_image",1,&PoseSelector::poseCallback, this);
             if(debug_) ROS_INFO_STREAM("Pose_selector activated");
 
         }else{
