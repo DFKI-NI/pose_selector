@@ -2,6 +2,15 @@
 
 This package provides functionality for storing, querying, and modifying pose information of objects in robotic simulation or real-world applications.
 
+## Table of Contents
+**[Installation](#installation)**<br>
+**[Messages](#messages)**<br>
+**[Services](#services)**<br>
+**[Nodes](#nodes)**<br>
+**[Example Usage](#example-usage)**<br>
+
+</br>
+
 ## Installation
 
 1. This installation tutorial relies on ssh key authentication, if you haven't uploaded ssh keys to your github account, please follow this [link](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/connecting-to-github-with-ssh)
@@ -230,7 +239,39 @@ The dope_converter_node converts messages of type vision_msgs/Detection3DArray i
 
 </br>
 
+### pose_selector_visualizer_node
+
+The pose_selector_visualizer_node will constantly query a pose_selector instance and publish MarkerArray messages containing the meshes of the associated objects.
+
+**Publishers**
+
+* **objects_mesh_publisher** (visualization_msgs::MarkerArray, default topic: `/pose_selector_objects`)
+
+**Launch Files**
+
+* `mesh_visualizer.launch`: launches the mesh visualizer by itself (no pose_selector instance)
+* `pose_selector_with_visualizer.launch`: launches the mesh visualizer and pose_selector
+
+**Launch File Arguments**
+* `mesh_config`: name of configuration file to be loaded, contains URLs to meshes. File should be located in /config folder.
+
+**Configuration Files**
+
+* `example_mesh_config.yaml`: demonstration configuration for mesh config file. This configuration file corresponds to three meshes: cube, cylinder, and sphere.
+
+**Configuration File Parameters**
+
+* **meshes** (struct, see configuration files for examples)
+* **meshes/\<name\>** (string, object class ID)
+* **meshes/\<name\>/<URL\>** (string, URL location for mesh)
+
+</br>
+
 ## Example Usage
+
+</br>
+
+### Pose Selector
 
 In one terminal, launch the pose_selector_node by executing the following:
 
@@ -255,5 +296,19 @@ For example, to query all objects of class screwdriver, execute the following:
 rosservice call /pose_selector_class_query "class_id: 'screwdriver'"
 ```
 You should then be presented with the pose information of all objects of class screwdriver.
+
+</br>
+
+### Pose Selector Visualizer
+
+The mesh visualizer for the pose selector can be tested by executing the following:
+
+```
+roslaunch pose_selector pose_selector_with_visualizer.launch
+```
+
+Once the launch file has been executed, rviz can be used to visualize the object markers. The cylinder, sphere, and cube objects should be visible, as shown in the following image:
+
+![Visualizer Demo Result](./images/visualizer_demo.png)
 
 </br>

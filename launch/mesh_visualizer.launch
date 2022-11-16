@@ -2,7 +2,7 @@
     <arg name = "mesh_config" default="$(find pose_selector)/config/example_mesh_config.yaml" doc="Path to mesh objects config file"/>
 
     <!-- Remap subscriber to dope detected objects topic-->
-    <remap from="/pose_selector_get_all" to="/pose_selector_node/pose_selector_get_all" />
+    <remap from="/pose_selector_get_all_service" to="/pose_selector_node/pose_selector_get_all" />
 
     <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pose_selector_visualizer_node" output="screen">
         <rosparam command="load" file="$(arg mesh_config)" />

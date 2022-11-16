@@ -1,7 +1,13 @@
 <launch>
 
     <!-- Pose selector mesh visualizer-->
-    <include file="$(find pose_selector)/launch/mesh_visualizer.launch"/>
+    <arg name = "mesh_config" default="$(find pose_selector)/config/example_mesh_config.yaml" doc="Path to mesh objects config file"/>
+    <!-- Remap pose_selector_get_all_poses service-->
+    <remap from="/pose_selector_get_all_service" to="/pose_selector_node/pose_selector_get_all" />
+    
+    <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pose_selector_visualizer_node" output="screen">
+        <rosparam command="load" file="$(arg mesh_config)" />
+    </node>
 
     <!-- Pose selector -->
     <arg name="objects_of_interest" value="[]"/>

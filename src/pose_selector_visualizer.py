@@ -18,18 +18,18 @@ Query poses from pose selector and publish them as markers in rviz for visualisa
 class PoseSelectorVisualizer:
     def __init__(self, wait_for_pose_selector_srv=True):
         self.color = rospy.get_param('~object_color_rgba', [0,0,0,0])
-        self.object_pkg = rospy.get_param('~object_pkg', 'mobipick_gazebo')
         self.mesh_urls = rospy.get_param('~meshes')
         self.objects_mesh_publisher = rospy.Publisher('pose_selector_objects', MarkerArray, queue_size=1, latch=True)
-        pose_selector_get_all_poses_srv_name = rospy.get_param('~pose_selector_get_all_poses_srv_name', '/pose_selector_get_all')
-        rospy.loginfo(f'waiting for pose selector service: {pose_selector_get_all_poses_srv_name}')
+        
+        #Wait for pose_selector_get_all_poses service to be up and available
+        rospy.loginfo(f'Waiting for pose selector services')
         if wait_for_pose_selector_srv:
-            rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 2.0)
-        self.pose_selector_get_all_poses_srv = rospy.ServiceProxy(pose_selector_get_all_poses_srv_name, GetPoses)
+            rospy.wait_for_service('/pose_selector_get_all_service', 2.0)
+        self.pose_selector_get_all_poses_srv = rospy.ServiceProxy('/pose_selector_get_all_service', GetPoses)
 
-        rospy.loginfo('found pose selector services')
+        rospy.loginfo('Found pose selector services')
         rospy.sleep(0.5)
-        rospy.loginfo('pose selector visualizer node started')
+        rospy.loginfo('Pose selector visualizer node started')
 
     def make_mesh_marker_msg(self, mesh_path, mesh_pose, mesh_scale=[1,1,1], id=1, color=[0,0,0,0]):
         assert isinstance(mesh_pose, PoseStamped)
@@ -50,7 +50,6 @@ class PoseSelectorVisualizer:
     def make_obj_marker_msg(self, object_name, mesh_pose, id=1):
         assert isinstance(object_name, str)
         assert isinstance(mesh_pose, PoseStamped)
-        #assert object_name in self.mesh_urls, f'URL for {object_name} mesh not provided'
         mesh_path = self.mesh_urls[object_name]
         marker_msg = self.make_mesh_marker_msg(mesh_path, mesh_pose, id=id, color=self.color)
         return marker_msg
