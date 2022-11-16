@@ -35,7 +35,7 @@ This package provides functionality for storing, querying, and modifying pose in
 5. Clone repo
 
         cd $HOME/ros_ws/pose_selector_ws/src
-        git clone git@git.ni.dfki.de:environment_representation/pose_selector.git
+        git clone https://github.com/DFKI-NI/pose_selector.git
 
 6. Import dependency repositories
 
@@ -58,7 +58,7 @@ This package provides functionality for storing, querying, and modifying pose in
 
 ## Messages
 
-The pose_selector uses the ObjectPose and ObjectList messages from [object_pose_msgs](https://git.ni.dfki.de/environment_representation/object_pose_msgs) package.
+The pose_selector uses the ObjectPose and ObjectList messages from [object_pose_msgs](https://github.com/DFKI-NI/object_pose_msgs.git) package.
 
 </br>
 
