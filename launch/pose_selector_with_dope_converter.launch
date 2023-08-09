@@ -5,7 +5,7 @@
 
     <!-- Pose selector -->
     <!-- Remap pose_selector subscriber to dope converter output -->
-    <remap from="/mobipick/gripper_astra/rgb/logical_image" to="/dope_converter_poses"/>
+    <remap from="/mobipick/eef_main_cam/rgb/logical_image" to="/dope_converter_poses"/>
     <include file="$(find pose_selector)/launch/pose_selector.launch"/>
 
 </launch>
