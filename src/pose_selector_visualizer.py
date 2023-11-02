@@ -24,7 +24,7 @@ class PoseSelectorVisualizer:
         #Wait for pose_selector_get_all_poses service to be up and available
         rospy.loginfo(f'Waiting for pose selector services')
         if wait_for_pose_selector_srv:
-            rospy.wait_for_service('/pose_selector_get_all_service', 2.0)
+            rospy.wait_for_service('/pose_selector_get_all_service', 10.0)
         self.pose_selector_get_all_poses_srv = rospy.ServiceProxy('/pose_selector_get_all_service', GetPoses)
 
         rospy.loginfo('Found pose selector services')
