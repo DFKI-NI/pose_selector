@@ -45,7 +45,7 @@ This package provides functionality for storing, querying, and modifying pose in
 
         sudo apt install python3-rosdep
         cd $HOME/ros_ws/pose_selector_ws
-        rosdep update
+        rosdep update --include-eol-distros
         rosdep install -r --from-paths ./ -i -y --rosdistro noetic
 
 8. Build workspace
