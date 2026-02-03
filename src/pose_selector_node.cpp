@@ -28,31 +28,36 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ros/ros.h"
-#include <ros/package.h>
-#include <std_srvs/Trigger.h>
-#include <std_srvs/SetBool.h>
-#include <tf/transform_datatypes.h>
-#include <tf2_ros/transform_listener.h>
-#include <tf2/convert.h>
-#include <pose_selector/PoseQuery.h>
-#include <pose_selector/ClassQuery.h>
-#include <pose_selector/PoseUpdate.h>
-#include <pose_selector/PoseDelete.h>
-#include <pose_selector/ConfigSave.h>
-#include <pose_selector/GetPoses.h>
-#include <object_pose_msgs/ObjectList.h>
+#include "rclcpp/rclcpp.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
+#include "std_srvs/srv/trigger.hpp"
+#include "std_srvs/srv/set_bool.hpp"
+#include "tf2/LinearMath/Transform.h"
+#include "tf2/convert.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "pose_selector/srv/pose_query.hpp"
+#include "pose_selector/srv/class_query.hpp"
+#include "pose_selector/srv/pose_update.hpp"
+#include "pose_selector/srv/pose_delete.hpp"
+#include "pose_selector/srv/config_save.hpp"
+#include "pose_selector/srv/get_poses.hpp"
+#include "object_pose_msgs/msg/object_list.hpp"
 #include <regex>
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <yaml-cpp/yaml.h>
+#include <fstream>
+#include <sstream>
 
 struct PoseEntry
 {
     std::string class_id;
     int instance;
-    object_pose_msgs::ObjectPose pose_stamped;
+    object_pose_msgs::msg::ObjectPose pose_stamped;
 
     PoseEntry(){};
 
-    PoseEntry(object_pose_msgs::ObjectPose pose_msg_){
+    PoseEntry(object_pose_msgs::msg::ObjectPose pose_msg_){
         class_id = pose_msg_.class_id;
         instance = pose_msg_.instance_id;
         pose_stamped = pose_msg_;
@@ -60,87 +65,76 @@ struct PoseEntry
 
 };
 
-class PoseSelector
+class PoseSelector : public rclcpp::Node
 {
     private:
     bool debug_;
     bool recording_enabled_;
-    ros::ServiceServer query_service_;
-    ros::ServiceServer class_query_service_;
-    ros::ServiceServer update_service_;
-    ros::ServiceServer delete_service_;
-    ros::ServiceServer save_service_;
-    ros::ServiceServer get_all_poses_service_;
-    ros::ServiceServer record_activate_service_;
-    ros::ServiceServer pose_selector_clear_;
-    ros::Subscriber pose_sub_;
+    rclcpp::Service<pose_selector::srv::PoseQuery>::SharedPtr query_service_;
+    rclcpp::Service<pose_selector::srv::ClassQuery>::SharedPtr class_query_service_;
+    rclcpp::Service<pose_selector::srv::PoseUpdate>::SharedPtr update_service_;
+    rclcpp::Service<pose_selector::srv::PoseDelete>::SharedPtr delete_service_;
+    rclcpp::Service<pose_selector::srv::ConfigSave>::SharedPtr save_service_;
+    rclcpp::Service<pose_selector::srv::GetPoses>::SharedPtr get_all_poses_service_;
+    rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr record_activate_service_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr pose_selector_clear_;
+    rclcpp::Subscription<object_pose_msgs::msg::ObjectList>::SharedPtr pose_sub_;
     std::map<std::string,PoseEntry> pose_map_;
-    tf2_ros::Buffer tf_buffer_;
-    tf2_ros::TransformListener tf_listener_;
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     std::vector<std::string> objects_of_interest_;
     std::string global_reference_frame_;
-    ros::NodeHandle *nh_;
 
     public:
-    PoseSelector(ros::NodeHandle *nh) : tf_listener_(tf_buffer_)
+    PoseSelector() : Node("pose_selector_node")
     {
-        ros::NodeHandle pn("~");
-        pn.param("debug", debug_, false);
-        pn.param<std::string>("global_reference_frame", global_reference_frame_, std::string("world"));
+        this->declare_parameter("debug", false);
+        this->get_parameter("debug", debug_);
+        this->declare_parameter("global_reference_frame", "world");
+        this->get_parameter("global_reference_frame", global_reference_frame_);
         recording_enabled_ = false;
-        query_service_ = pn.advertiseService("pose_selector_query", &PoseSelector::callbackPoseQuery, this);
-        class_query_service_ = pn.advertiseService("pose_selector_class_query", &PoseSelector::callbackClassQuery, this);
-        update_service_ = pn.advertiseService("pose_selector_update", &PoseSelector::callbackPoseUpdate, this);
-        delete_service_ = pn.advertiseService("pose_selector_delete", &PoseSelector::callbackPoseDelete, this);
-        save_service_ = pn.advertiseService("pose_selector_save", &PoseSelector::callbackSave, this);
-        record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
-        get_all_poses_service_ = pn.advertiseService("pose_selector_get_all", &PoseSelector::getAllPoses, this);
-        pose_selector_clear_ = pn.advertiseService("pose_selector_clear", &PoseSelector::clearPoseSelector, this);
 
-        nh_ = nh;
+        query_service_ = this->create_service<pose_selector::srv::PoseQuery>("pose_selector_query", std::bind(&PoseSelector::callbackPoseQuery, this, std::placeholders::_1, std::placeholders::_2));
+        class_query_service_ = this->create_service<pose_selector::srv::ClassQuery>("pose_selector_class_query", std::bind(&PoseSelector::callbackClassQuery, this, std::placeholders::_1, std::placeholders::_2));
+        update_service_ = this->create_service<pose_selector::srv::PoseUpdate>("pose_selector_update", std::bind(&PoseSelector::callbackPoseUpdate, this, std::placeholders::_1, std::placeholders::_2));
+        delete_service_ = this->create_service<pose_selector::srv::PoseDelete>("pose_selector_delete", std::bind(&PoseSelector::callbackPoseDelete, this, std::placeholders::_1, std::placeholders::_2));
+        save_service_ = this->create_service<pose_selector::srv::ConfigSave>("pose_selector_save", std::bind(&PoseSelector::callbackSave, this, std::placeholders::_1, std::placeholders::_2));
+        record_activate_service_ = this->create_service<std_srvs::srv::SetBool>("pose_selector_activate", std::bind(&PoseSelector::activateRecording, this, std::placeholders::_1, std::placeholders::_2));
+        get_all_poses_service_ = this->create_service<pose_selector::srv::GetPoses>("pose_selector_get_all", std::bind(&PoseSelector::getAllPoses, this, std::placeholders::_1, std::placeholders::_2));
+        pose_selector_clear_ = this->create_service<std_srvs::srv::Trigger>("pose_selector_clear", std::bind(&PoseSelector::clearPoseSelector, this, std::placeholders::_1, std::placeholders::_2));
 
-        //Parse ROS parameter related to objects of interest (object classes not listed will be ignored)
-        XmlRpc::XmlRpcValue v;
-        pn.param("objects_of_interest", v, v);
+        tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-        if (v.getType() == XmlRpc::XmlRpcValue::TypeArray)
-        {
-          for(int i =0;i<v.size();i++)
-          {
-              objects_of_interest_.push_back(v[i]);
-          }
-        } else {
-          ROS_ERROR("Parameter not set, or not an array: %s", pn.resolveName("objects_of_interest").c_str());
-        }
+        this->declare_parameter("objects_of_interest", std::vector<std::string>{});
+        this->get_parameter("objects_of_interest", objects_of_interest_);
     }
 
     //Service to query for an item ID and to return the pose of the item
-    bool callbackPoseQuery(pose_selector::PoseQuery::Request &req, pose_selector::PoseQuery::Response &res)
+    void callbackPoseQuery(const std::shared_ptr<pose_selector::srv::PoseQuery::Request> req, std::shared_ptr<pose_selector::srv::PoseQuery::Response> res)
     {
-        std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
+        std::string item_id = req->class_id + "_" + std::to_string(req->instance_id);
 
-        if(debug_) ROS_INFO_STREAM("Pose query service call: " << item_id);
+        if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Pose query service call: " << item_id);
 
         std::map<std::string, PoseEntry>::iterator itr = pose_map_.find(item_id);
 
         if(itr != pose_map_.end())
         {
-            res.pose_query_result = itr->second.pose_stamped;
+            res->pose_query_result = itr->second.pose_stamped;
         }else{
-            ROS_ERROR_STREAM(item_id << " does not exist!");
+            RCLCPP_ERROR_STREAM(this->get_logger(), item_id << " does not exist!");
         }
-
-        return true;
     }
 
     //Service to query all items of a certain class and to return the poses and ids of the items
-    bool callbackClassQuery(pose_selector::ClassQuery::Request &req, pose_selector::ClassQuery::Response &res)
+    void callbackClassQuery(const std::shared_ptr<pose_selector::srv::ClassQuery::Request> req, std::shared_ptr<pose_selector::srv::ClassQuery::Response> res)
     {
-        std::string class_id = req.class_id;
+        std::string class_id = req->class_id;
 
-        if(debug_) ROS_INFO_STREAM("Class query service call: " << class_id);
+        if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Class query service call: " << class_id);
 
-        std::vector<object_pose_msgs::ObjectPose> pose_result;
+        std::vector<object_pose_msgs::msg::ObjectPose> pose_result;
 
         for (const auto& [key, value] : pose_map_)
         {
@@ -150,71 +144,49 @@ class PoseSelector
             }
         }
 
-        res.poses = pose_result;
-
-        return true;
+        res->poses = pose_result;
     }
 
     //Service to update one or more poses
-    bool callbackPoseUpdate(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
+    void callbackPoseUpdate(const std::shared_ptr<pose_selector::srv::PoseUpdate::Request> req, std::shared_ptr<pose_selector::srv::PoseUpdate::Response> res)
     {
-
-        updatePoses(req.poses);
+        (void)res;
+        updatePoses(req->poses);
 
         if(debug_) printPoses();
-
-        return true;
     }
 
-    void updatePoses(object_pose_msgs::ObjectList object_list)
+    void updatePoses(object_pose_msgs::msg::ObjectList object_list)
     {
-        ///TODO: Alternative ways to do conversion?
-        ///TODO: Should world frame always be used to perform lookup?
-
-        //Perform TF lookup based on object_list.header.frame_id
         std::string reference_tf = object_list.header.frame_id;
 
-        geometry_msgs::TransformStamped camera_to_world_tf;
+        geometry_msgs::msg::TransformStamped camera_to_world_tf;
 
         try{
-            camera_to_world_tf = tf_buffer_.lookupTransform(this->global_reference_frame_,reference_tf,ros::Time(0));
+            camera_to_world_tf = tf_buffer_->lookupTransform(this->global_reference_frame_, reference_tf, tf2::TimePointZero);
             }
         catch (tf2::TransformException &ex){
-            ROS_ERROR("%s", ex.what());
-            ros::Duration(1.0).sleep();
+            RCLCPP_ERROR(this->get_logger(), "%s", ex.what());
+            return;
         }
 
-        //Convert camera_to_world_tf to tf::Transform
-        tf::Transform camera_transform;
-        camera_transform.setOrigin(tf::Vector3(camera_to_world_tf.transform.translation.x,
-            camera_to_world_tf.transform.translation.y,
-            camera_to_world_tf.transform.translation.z));
-        camera_transform.setRotation(tf::Quaternion(camera_to_world_tf.transform.rotation.x,
-            camera_to_world_tf.transform.rotation.y,
-            camera_to_world_tf.transform.rotation.z,
-            camera_to_world_tf.transform.rotation.w));
+        tf2::Transform camera_transform;
+        tf2::fromMsg(camera_to_world_tf.transform, camera_transform);
 
-        //Iterate through each object detected
         for (auto i: object_list.objects)
         {
-            //Check if current object class is not an object of interest
-            if(objects_of_interest_.size()>0 && std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
-                if(debug_) ROS_INFO_STREAM("Class: " << i.class_id << " not of interest, ignoring associated pose");
+            if(!objects_of_interest_.empty() && std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
+                if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Class: " << i.class_id << " not of interest, ignoring associated pose");
                 continue;
             }
 
-            //Convert object pose to tf::Transform
-            geometry_msgs::Point obj_pos = i.pose.position;
-            geometry_msgs::Quaternion obj_orient = i.pose.orientation;
-            tf::Transform obj_transform;
-            obj_transform.setOrigin(tf::Vector3(obj_pos.x,obj_pos.y,obj_pos.z));
-            obj_transform.setRotation(tf::Quaternion(obj_orient.x,obj_orient.y,obj_orient.z,obj_orient.w));
+            tf2::Transform obj_transform;
+            tf2::fromMsg(i.pose, obj_transform);
 
-            //Calculate resultant transform from reference to object
             obj_transform = camera_transform*obj_transform;
-            tf::Vector3 final_position = obj_transform.getOrigin();
-            tf::Quaternion final_orientation = obj_transform.getRotation();
-
+            tf2::Vector3 final_position = obj_transform.getOrigin();
+            tf2::Quaternion final_orientation = obj_transform.getRotation();
+            
             //Extract and update PoseEntry with correct pose information
             PoseEntry update_entry = PoseEntry(i);
             i.pose.position.x = final_position[0];
@@ -230,164 +202,185 @@ class PoseSelector
         }
     }
 
-    void poseCallback(object_pose_msgs::ObjectList object_list)
+    void poseCallback(const object_pose_msgs::msg::ObjectList::SharedPtr msg)
     {
-
-        updatePoses(object_list);
+        updatePoses(*msg);
         if(debug_) printPoses();
-
     }
 
     //Service to delete an item
-    bool callbackPoseDelete(pose_selector::PoseDelete::Request &req, pose_selector::PoseDelete::Response &res)
+    void callbackPoseDelete(const std::shared_ptr<pose_selector::srv::PoseDelete::Request> req, std::shared_ptr<pose_selector::srv::PoseDelete::Response> res)
     {
+        (void)res;
+        std::string item_id = req->class_id + "_" + std::to_string(req->instance_id);
 
-        std::string item_id = req.class_id + "_" + std::to_string(req.instance_id);
-
-        if(debug_) ROS_INFO_STREAM("Delete pose service call: " << item_id);
+        if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Delete pose service call: " << item_id);
 
         pose_map_.erase(item_id);
 
         if(debug_) printPoses();
-
-        return true;
     }
 
     //Save parameters to yaml file
-    bool callbackSave(pose_selector::ConfigSave::Request &req, pose_selector::ConfigSave::Response &res)
+    void callbackSave(const std::shared_ptr<pose_selector::srv::ConfigSave::Request> req, std::shared_ptr<pose_selector::srv::ConfigSave::Response> res)
     {
-        ros::NodeHandle pn("~");
-
+        (void)res;
+        YAML::Node node;
         for (const auto& [key, value] : pose_map_)
         {
-            pn.setParam("poses/"+key+"/rw",value.pose_stamped.pose.orientation.w);
-            pn.setParam("poses/"+key+"/rx",value.pose_stamped.pose.orientation.x);
-            pn.setParam("poses/"+key+"/ry",value.pose_stamped.pose.orientation.y);
-            pn.setParam("poses/"+key+"/rz",value.pose_stamped.pose.orientation.z);
-            pn.setParam("poses/"+key+"/x",value.pose_stamped.pose.position.x);
-            pn.setParam("poses/"+key+"/y",value.pose_stamped.pose.position.y);
-            pn.setParam("poses/"+key+"/z",value.pose_stamped.pose.position.z);
-            pn.setParam("poses/"+key+"/size_x",value.pose_stamped.size.x);
-            pn.setParam("poses/"+key+"/size_y",value.pose_stamped.size.y);
-            pn.setParam("poses/"+key+"/size_z",value.pose_stamped.size.z);
-            pn.setParam("poses/"+key+"/min_x",value.pose_stamped.min.x);
-            pn.setParam("poses/"+key+"/min_y",value.pose_stamped.min.y);
-            pn.setParam("poses/"+key+"/min_z",value.pose_stamped.min.z);
-            pn.setParam("poses/"+key+"/max_x",value.pose_stamped.max.x);
-            pn.setParam("poses/"+key+"/max_y",value.pose_stamped.max.y);
-            pn.setParam("poses/"+key+"/max_z",value.pose_stamped.max.z);
+            node["poses"][key]["rw"] = value.pose_stamped.pose.orientation.w;
+            node["poses"][key]["rx"] = value.pose_stamped.pose.orientation.x;
+            node["poses"][key]["ry"] = value.pose_stamped.pose.orientation.y;
+            node["poses"][key]["rz"] = value.pose_stamped.pose.orientation.z;
+            node["poses"][key]["x"] = value.pose_stamped.pose.position.x;
+            node["poses"][key]["y"] = value.pose_stamped.pose.position.y;
+            node["poses"][key]["z"] = value.pose_stamped.pose.position.z;
+            node["poses"][key]["size_x"] = value.pose_stamped.size.x;
+            node["poses"][key]["size_y"] = value.pose_stamped.size.y;
+            node["poses"][key]["size_z"] = value.pose_stamped.size.z;
+            node["poses"][key]["min_x"] = value.pose_stamped.min.x;
+            node["poses"][key]["min_y"] = value.pose_stamped.min.y;
+            node["poses"][key]["min_z"] = value.pose_stamped.min.z;
+            node["poses"][key]["max_x"] = value.pose_stamped.max.x;
+            node["poses"][key]["max_y"] = value.pose_stamped.max.y;
+            node["poses"][key]["max_z"] = value.pose_stamped.max.z;
         }
 
-        std::string save_dir = ros::package::getPath("pose_selector") + "/config/" + req.file_name + ".yaml";
-        std::string command = "rosparam dump " + save_dir + " " + pn.getNamespace();
-        system(command.c_str());
-        return true;
+        std::string save_dir = ament_index_cpp::get_package_share_directory("pose_selector") + "/config/" + req->file_name + ".yaml";
+        std::ofstream fout(save_dir);
+        fout << node;
     }
 
     //Load the poses from a yaml file
     void loadPoses()
     {
-        ros::NodeHandle pn("~");
+        this->declare_parameter<std::string>("config_file", "");
+        std::string config_file_path = this->get_parameter("config_file").as_string();
 
-        XmlRpc::XmlRpcValue poses_list;
-
-        if (!pn.getParam("poses",poses_list))
+        if (config_file_path.empty())
         {
-            if(debug_) ROS_WARN_STREAM("Pose_selector failed to get initial poses from configuration file. You may ignore this message if no prior poses are needed.");
-        }else
-        {
-            //Check that main poses parameter is a structure
-            ROS_ASSERT(poses_list.getType()==XmlRpc::XmlRpcValue::TypeStruct);
+            if (debug_)
+                RCLCPP_WARN_STREAM(this->get_logger(), "config_file parameter is not set. You may ignore this message if no prior poses are needed.");
+            return;
+        }
 
-            for (XmlRpc::XmlRpcValue::iterator i = poses_list.begin(); i != poses_list.end(); i++)
+        try
+        {
+            YAML::Node poses_yaml = YAML::LoadFile(config_file_path);
+            if (!poses_yaml["poses"])
             {
-                //Check that sub-parameters in poses are also structures
-                ROS_ASSERT(i->second.getType()==XmlRpc::XmlRpcValue::TypeStruct);
+                if(debug_) RCLCPP_WARN_STREAM(this->get_logger(), "Pose_selector failed to get initial poses from configuration file. 'poses' node not found in " << config_file_path << ". You may ignore this message if no prior poses are needed.");
+                return;
+            }
 
-                //Check that pose, class, and instance sub-parameters are correct format
-                ROS_ASSERT(i->second["x"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["y"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["z"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["rx"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["ry"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["rz"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
-                ROS_ASSERT(i->second["rw"].getType()==XmlRpc::XmlRpcValue::TypeDouble);
+            const YAML::Node& poses_list = poses_yaml["poses"];
+            for (const auto& pose_it : poses_list)
+            {
+                std::string name = pose_it.first.as<std::string>();
+                const YAML::Node& pose_data = pose_it.second;
 
-                object_pose_msgs::ObjectPose pose_item;
-
-                pose_item.pose.position.x = i->second["x"];
-                pose_item.pose.position.y = i->second["y"];
-                pose_item.pose.position.z = i->second["z"];
-                pose_item.pose.orientation.x = i->second["rx"];
-                pose_item.pose.orientation.y = i->second["ry"];
-                pose_item.pose.orientation.z = i->second["rz"];
-                pose_item.pose.orientation.w = i->second["rw"];
-                pose_item.size.x = i->second["size_x"];
-                pose_item.size.y = i->second["size_y"];
-                pose_item.size.z = i->second["size_z"];
-                pose_item.min.x = i->second["min_x"];
-                pose_item.min.y = i->second["min_y"];
-                pose_item.min.z = i->second["min_z"];
-                pose_item.max.x = i->second["max_x"];
-                pose_item.max.y = i->second["max_y"];
-                pose_item.max.z = i->second["max_z"];
+                object_pose_msgs::msg::ObjectPose pose_item;
+                pose_item.pose.position.x = pose_data["x"].as<double>();
+                pose_item.pose.position.y = pose_data["y"].as<double>();
+                pose_item.pose.position.z = pose_data["z"].as<double>();
+                pose_item.pose.orientation.x = pose_data["rx"].as<double>();
+                pose_item.pose.orientation.y = pose_data["ry"].as<double>();
+                pose_item.pose.orientation.z = pose_data["rz"].as<double>();
+                pose_item.pose.orientation.w = pose_data["rw"].as<double>();
+                pose_item.size.x = pose_data["size_x"].as<double>();
+                pose_item.size.y = pose_data["size_y"].as<double>();
+                pose_item.size.z = pose_data["size_z"].as<double>();
+                pose_item.min.x = pose_data["min_x"].as<double>();
+                pose_item.min.y = pose_data["min_y"].as<double>();
+                pose_item.min.z = pose_data["min_z"].as<double>();
+                pose_item.max.x = pose_data["max_x"].as<double>();
+                pose_item.max.y = pose_data["max_y"].as<double>();
+                pose_item.max.z = pose_data["max_z"].as<double>();
 
                 std::cmatch m;
-                if(std::regex_search(i->first.c_str(), m, std::regex("(.+)_([0-9]+)")))
+                if(std::regex_search(name.c_str(), m, std::regex("(.+)_([0-9]+)")))
                 {
                     pose_item.class_id = m[1];
                     pose_item.instance_id = std::stoi(m[2]);
                 }else{
-                    ROS_INFO_STREAM("Pose " << i->first << " not named correctly in configuration file");
+                    RCLCPP_INFO_STREAM(this->get_logger(), "Pose " << name << " not named correctly in configuration file");
                 continue;
                 }
 
                 struct PoseEntry pose_entry(pose_item);
 
-                pose_map_[i->first] = pose_entry;
+                pose_map_[name] = pose_entry;
             }
 
             if(debug_) printPoses();
-
-        pn.deleteParam("poses");
         }
-
+        catch (const YAML::Exception& e)
+        {
+            RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load poses file '" << config_file_path << "'. Error: " << e.what());
+        }
     }
 
-    //Iterate through the pose_map and print all items and their poses
+
+//Iterate through the pose_map and print all items and their poses
     void printPoses()
     {
-        ROS_INFO_STREAM("-------------------------------------------------------------------------------------------");
+        RCLCPP_INFO_STREAM(this->get_logger(), "-------------------------------------------------------------------------------------------");
         for(const auto& elem : pose_map_)
         {
-            ROS_INFO_STREAM("\nId: " << elem.first << "\n" << elem.second.pose_stamped);
+            std::stringstream ss;
+            ss << "\nId: " << elem.first << "\n";
+            ss << "  Class ID: " << elem.second.class_id << "\n";
+            ss << "  Instance ID: " << elem.second.instance << "\n";
+            ss << "  Position:\n";
+            ss << "    x: " << elem.second.pose_stamped.pose.position.x << "\n";
+            ss << "    y: " << elem.second.pose_stamped.pose.position.y << "\n";
+            ss << "    z: " << elem.second.pose_stamped.pose.position.z << "\n";
+            ss << "  Orientation:\n";
+            ss << "    x: " << elem.second.pose_stamped.pose.orientation.x << "\n";
+            ss << "    y: " << elem.second.pose_stamped.pose.orientation.y << "\n";
+            ss << "    z: " << elem.second.pose_stamped.pose.orientation.z << "\n";
+            ss << "    w: " << elem.second.pose_stamped.pose.orientation.w << "\n";
+            ss << "  Size:\n";
+            ss << "    x: " << elem.second.pose_stamped.size.x << "\n";
+            ss << "    y: " << elem.second.pose_stamped.size.y << "\n";
+            ss << "    z: " << elem.second.pose_stamped.size.z << "\n";
+            ss << "  Min:\n";
+            ss << "    x: " << elem.second.pose_stamped.min.x << "\n";
+            ss << "    y: " << elem.second.pose_stamped.min.y << "\n";
+            ss << "    z: " << elem.second.pose_stamped.min.z << "\n";
+            ss << "  Max:\n";
+            ss << "    x: " << elem.second.pose_stamped.max.x << "\n";
+            ss << "    y: " << elem.second.pose_stamped.max.y << "\n";
+            ss << "    z: " << elem.second.pose_stamped.max.z;
+
+            RCLCPP_INFO_STREAM(this->get_logger(), ss.str());
         }
     }
 
     /// Turn on/off recording
-    bool activateRecording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
+    void activateRecording(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, std::shared_ptr<std_srvs::srv::SetBool::Response> res)
     {
-        bool recording_activated = req.data;
+        bool recording_activated = req->data;
 
         //Activate or deactivate subscriber
         if(recording_activated)
         {
-            pose_sub_ = nh_->subscribe("/logical_image",1,&PoseSelector::poseCallback, this);
-            if(debug_) ROS_INFO_STREAM("Pose_selector activated");
+            pose_sub_ = this->create_subscription<object_pose_msgs::msg::ObjectList>("/logical_image", 1, std::bind(&PoseSelector::poseCallback, this, std::placeholders::_1));
+            if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Pose_selector activated");
 
         }else{
-            pose_sub_.shutdown();
-            if(debug_) ROS_INFO_STREAM("Pose_selector deactivated");
+            pose_sub_.reset();
+            if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Pose_selector deactivated");
         }
 
-        res.success = true;
-        return true;
+        res->success = true;
     }
 
     /// Get all current poses stored in pose_selector
-    bool getAllPoses(pose_selector::GetPoses::Request &req, pose_selector::GetPoses::Response &res)
+    void getAllPoses(const std::shared_ptr<pose_selector::srv::GetPoses::Request> req, std::shared_ptr<pose_selector::srv::GetPoses::Response> res)
     {
-        object_pose_msgs::ObjectList pose_list;
+        (void)req;
+        object_pose_msgs::msg::ObjectList pose_list;
 
         for(const auto& elem : pose_map_)
         {
@@ -396,28 +389,24 @@ class PoseSelector
 
         pose_list.header.frame_id = global_reference_frame_;
 
-        res.poses = pose_list;
-
-        return true;
+        res->poses = pose_list;
     }
 
-    bool clearPoseSelector(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+    void clearPoseSelector(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
     {
+        (void)req;
         pose_map_.clear();
-        res.success = true;
-        return true;
+        res->success = true;
     }
 
 };
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "pose_selector_server");
-    ros::NodeHandle nh;
-    PoseSelector pc = PoseSelector(&nh);
-    pc.loadPoses();
-
-    ros::spin();
-
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<PoseSelector>();
+    node->loadPoses();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
     return 0;
 }

@@ -28,74 +28,122 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ros/ros.h"
-#include <ros/package.h>
-#include <object_pose_msgs/ObjectList.h>
-#include <vision_msgs/Detection3DArray.h>
+#include "rclcpp/rclcpp.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
+#include "object_pose_msgs/msg/object_list.hpp"
+#include "vision_msgs/msg/detection3_d_array.hpp"
+#include <yaml-cpp/yaml.h>
+#include <map>
+#include <mutex>
+#include <string>
+#include <vector>
+#include <functional>
 
-class DopeConverter
+class DopeConverter : public rclcpp::Node
 {
     private:
     bool debug_;
-    ros::NodeHandle *nh_;
-    std::map<int,std::string> dope_ids_;
-    ros::Subscriber dope_sub_;
-    ros::Publisher converter_pub_;
+    std::map<std::string, std::string> dope_ids_;
+    rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr dope_sub_;
+    rclcpp::Publisher<object_pose_msgs::msg::ObjectList>::SharedPtr converter_pub_;
     std::mutex connect_mutex_;
 
     public:
-    DopeConverter(ros::NodeHandle *nh)
-    {
-        ros::NodeHandle pn("~");
-        nh_ = nh;
-        pn.param("debug", debug_, false);
+    DopeConverter()
+    : Node("dope_converter_node", rclcpp::NodeOptions().allow_undeclared_parameters(true))
+    {    
+        this->declare_parameter("debug", false);
+        this->get_parameter("debug", debug_);
+        this->declare_parameter("config_path", "");
+        std::string config_file_path = this->get_parameter("config_path").as_string();
 
-        //load in dope class ids
-        XmlRpc::XmlRpcValue v;
-        pn.param("class_ids",v,v);
-        ROS_ASSERT(v.getType()==XmlRpc::XmlRpcValue::TypeStruct);
-
-        for(XmlRpc::XmlRpcValue::iterator i = v.begin(); i!=v.end(); ++i)
+        if (config_file_path.empty())
         {
-            ROS_ASSERT(i->second.getType()==XmlRpc::XmlRpcValue::TypeInt);
-            dope_ids_[i->second] = i->first;
+            if (debug_)
+                RCLCPP_WARN_STREAM(this->get_logger(), "config_path parameter is not set. No DOPE class IDs will be loaded from a file.");
+        }
+        else
+        {
+            try
+            {
+                YAML::Node config_yaml = YAML::LoadFile(config_file_path);
+                if (config_yaml["class_ids"])
+                {
+                    for (YAML::const_iterator it = config_yaml["class_ids"].begin(); it != config_yaml["class_ids"].end(); ++it)
+                    {
+                        std::string class_name = it->first.as<std::string>();
+                        int dope_id = it->second.as<int>();
+                        dope_ids_[std::to_string(dope_id)] = class_name;
+                    }
+                }
+                else
+                {
+                    if (debug_)
+                        RCLCPP_WARN_STREAM(this->get_logger(), "The YAML file '" << config_file_path << "' does not contain a 'class_ids' map.");
+                }
+            }
+            catch (const YAML::Exception& e)
+            {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load configuration file '" << config_file_path << "'. Error: " << e.what());
+            }
         }
 
         if(debug_)
         {
-            std::map<int,std::string>::iterator it;
-            for(it=dope_ids_.begin(); it!=dope_ids_.end(); ++ it)
+            for(auto const& [key, val] : dope_ids_)
             {
-                ROS_INFO_STREAM("Dope ID: " << it->first << " Label: " << it->second);
+                RCLCPP_INFO_STREAM(this->get_logger(), "Dope ID: " << key << " Label: " << val);
             }
         }
 
-        //converted messages to be published
-        std::lock_guard<std::mutex> lock(connect_mutex_);
-        ros::SubscriberStatusCallback connect_cb = boost::bind(&DopeConverter::connectCb,this);
-        converter_pub_ = nh->advertise<object_pose_msgs::ObjectList>("/dope_converter_poses",1000,connect_cb,connect_cb);
+        rclcpp::PublisherOptions pub_options;
+        pub_options.event_callbacks.matched_callback = 
+            [this](const rclcpp::MatchedInfo& info)
+        {
+            if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Dope Converter Connect Callback Called");
+            std::lock_guard<std::mutex> lock(connect_mutex_);
+            if(info.current_count == 0)
+            {
+                if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "No DOPE converter subscribers, shutting down DOPE subscriber");
+                dope_sub_.reset();
+            } else if (!dope_sub_)
+            {
+                if(debug_) RCLCPP_INFO_STREAM(this->get_logger(), "Starting up DOPE subscriber");
+                dope_sub_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
+                    "/dope_output",
+                    1000,
+                    std::bind(&DopeConverter::dopeCallback, this, std::placeholders::_1));
+            }
+        };
+        
+        converter_pub_ = this->create_publisher<object_pose_msgs::msg::ObjectList>("/dope_converter_poses", 1000, pub_options);
     }
 
-    void dopeCallback(const vision_msgs::Detection3DArray::ConstPtr& msg)
+    void dopeCallback(const vision_msgs::msg::Detection3DArray::SharedPtr msg)
     {
-        object_pose_msgs::ObjectList converted_msg;
+        object_pose_msgs::msg::ObjectList converted_msg;
 
         converted_msg.header = msg->header;
 
-        std::vector<object_pose_msgs::ObjectPose> converted_poses;
+        std::vector<object_pose_msgs::msg::ObjectPose> converted_poses;
 
         for(auto i: msg->detections)
         {
-            object_pose_msgs::ObjectPose new_pose;
+            if (i.results.empty())
+            {
+                continue;
+            }
+
+            object_pose_msgs::msg::ObjectPose new_pose;
 
             //search for object label based on dope ID
-            std::map<int,std::string>::iterator itr = dope_ids_.find(i.results[0].id);
+            std::map<std::string,std::string>::iterator itr = dope_ids_.find(i.results[0].hypothesis.class_id);
 
             if(itr != dope_ids_.end())
             {
                 new_pose.class_id = itr->second;
             }else{
-                ROS_ERROR_STREAM(i.results[0].id << " does not exist!");
+                RCLCPP_ERROR_STREAM(this->get_logger(), i.results[0].hypothesis.class_id << " does not exist!");
             }
 
             //set instance id to zero for situations where only one instance per class is present
@@ -111,39 +159,14 @@ class DopeConverter
 
         converted_msg.objects = converted_poses;
 
-        converter_pub_.publish(converted_msg);
+        converter_pub_->publish(converted_msg);
     }
-
-    //Callback for connection/disconnections to DOPE converter output topic
-    void connectCb()
-    {
-        if(debug_) ROS_INFO_STREAM("Dope Converter Connect Callback Called");
-
-        std::lock_guard<std::mutex> lock(connect_mutex_);
-
-        //If there are no subscribers to dope converter, then unsubscribe from DOPE messages
-        if (converter_pub_.getNumSubscribers() == 0)
-        {
-            if(debug_) ROS_INFO_STREAM("No DOPE converter subscribers, shutting down DOPE subcriber");
-            dope_sub_.shutdown();
-
-        }else if (!dope_sub_)
-        {
-            if(debug_) ROS_INFO_STREAM("Starting up DOPE subscriber");
-            dope_sub_ = nh_->subscribe("/dope_output",1,&DopeConverter::dopeCallback,this);
-        }
-    }
-
 };
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "dope_to_object_pose_msgs_converter");
-    ros::NodeHandle nh;
-
-    DopeConverter node = DopeConverter(&nh);
-
-    ros::spin();
-
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<DopeConverter>());
+    rclcpp::shutdown();
     return 0;
 }
