@@ -176,6 +176,10 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 * **pose_sub_** (pose_selector::ObjectList, default topic: `/logical_image`)
 
+**Publishers**
+
+* **~perception_active** (std_msgs::Bool, latched; `true` while the pose selector is subscribed to its perception input, otherwise `false`)
+
 **Launch Files**
 
 * `pose_selector_default.launch`: launches the node with empty objects_of_interest and empty initial poses

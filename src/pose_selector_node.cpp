@@ -32,6 +32,7 @@
 #include <ros/package.h>
 #include <std_srvs/Trigger.h>
 #include <std_srvs/SetBool.h>
+#include <std_msgs/Bool.h>
 #include <tf/transform_datatypes.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/convert.h>
@@ -73,6 +74,7 @@ class PoseSelector
     ros::ServiceServer get_all_poses_service_;
     ros::ServiceServer record_activate_service_;
     ros::ServiceServer pose_selector_clear_;
+    ros::Publisher perception_active_pub_;
     ros::Subscriber pose_sub_;
     std::map<std::string,PoseEntry> pose_map_;
     tf2_ros::Buffer tf_buffer_;
@@ -96,6 +98,11 @@ class PoseSelector
         record_activate_service_ = pn.advertiseService("pose_selector_activate", &PoseSelector::activateRecording, this );
         get_all_poses_service_ = pn.advertiseService("pose_selector_get_all", &PoseSelector::getAllPoses, this);
         pose_selector_clear_ = pn.advertiseService("pose_selector_clear", &PoseSelector::clearPoseSelector, this);
+        perception_active_pub_ = pn.advertise<std_msgs::Bool>("perception_active", 1, true);
+
+        std_msgs::Bool perception_active_msg;
+        perception_active_msg.data = recording_enabled_;
+        perception_active_pub_.publish(perception_active_msg);
 
         nh_ = nh;
 
@@ -367,10 +374,8 @@ class PoseSelector
     /// Turn on/off recording
     bool activateRecording(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
     {
-        bool recording_activated = req.data;
-
         //Activate or deactivate subscriber
-        if(recording_activated)
+        if(req.data)
         {
             pose_sub_ = nh_->subscribe("/logical_image",1,&PoseSelector::poseCallback, this);
             if(debug_) ROS_INFO_STREAM("Pose_selector activated");
@@ -380,7 +385,13 @@ class PoseSelector
             if(debug_) ROS_INFO_STREAM("Pose_selector deactivated");
         }
 
+        recording_enabled_ = static_cast<bool>(pose_sub_);
+        std_msgs::Bool perception_active_msg;
+        perception_active_msg.data = recording_enabled_;
+        perception_active_pub_.publish(perception_active_msg);
+
         res.success = true;
+        res.message = recording_enabled_ ? "Pose selector perception activated" : "Pose selector perception deactivated";
         return true;
     }
 
