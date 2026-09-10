@@ -166,14 +166,17 @@ class PoseSelector
     bool callbackPoseUpdate(pose_selector::PoseUpdate::Request &req, pose_selector::PoseUpdate::Response &res)
     {
 
-        updatePoses(req.poses);
+        // An explicit update is authoritative. In particular, open-set
+        // perception must be able to add classes that were not known when the
+        // node's objects_of_interest parameter was configured.
+        updatePoses(req.poses, false);
 
         if(debug_) printPoses();
 
         return true;
     }
 
-    void updatePoses(object_pose_msgs::ObjectList object_list)
+    void updatePoses(object_pose_msgs::ObjectList object_list, bool filter_objects_of_interest = true)
     {
         ///TODO: Alternative ways to do conversion?
         ///TODO: Should world frame always be used to perform lookup?
@@ -205,7 +208,7 @@ class PoseSelector
         for (auto i: object_list.objects)
         {
             //Check if current object class is not an object of interest
-            if(objects_of_interest_.size()>0 && std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
+            if(filter_objects_of_interest && objects_of_interest_.size()>0 && std::find(objects_of_interest_.begin(), objects_of_interest_.end(), i.class_id) == objects_of_interest_.end()){
                 if(debug_) ROS_INFO_STREAM("Class: " << i.class_id << " not of interest, ignoring associated pose");
                 continue;
             }

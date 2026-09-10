@@ -19,6 +19,10 @@ class PoseSelectorVisualizer:
     def __init__(self, wait_for_pose_selector_srv=True):
         self.color = rospy.get_param('~object_color_rgba', [0,0,0,0])
         self.mesh_urls = rospy.get_param('~meshes')
+        # Classes the pose selector was configured for. Any other class reaching
+        # the visualizer came from an open-set PoseUpdate service call.
+        self.objects_of_interest = rospy.get_param('/pose_selector_node/objects_of_interest', [])
+        self.unconfigured_meshes = set()
         self.objects_mesh_publisher = rospy.Publisher('pose_selector_objects', MarkerArray, queue_size=1, latch=True)
         
         #Wait for pose_selector_get_all_poses service to be up and available
@@ -70,8 +74,15 @@ class PoseSelectorVisualizer:
                     marker_array_msg.markers.append(self.make_obj_marker_msg(obj_pose.class_id, pose_stamped_msg, id=id))
                     id += 1
                 else:
-                    #Mesh URL for object not provided in configuration
-                    rospy.logwarn(f'URL for {obj_pose.class_id} mesh not provided in configuration file')
+                    # Report each class without a mesh once. Configured classes are
+                    # expected to have a mesh, so warn; open-set classes cannot have
+                    # one in advance, so only mention them at debug level.
+                    if obj_pose.class_id not in self.unconfigured_meshes:
+                        self.unconfigured_meshes.add(obj_pose.class_id)
+                        if not self.objects_of_interest or obj_pose.class_id in self.objects_of_interest:
+                            rospy.logwarn(f'URL for {obj_pose.class_id} mesh not provided in configuration file')
+                        else:
+                            rospy.logdebug(f'No mesh configured for open-set object {obj_pose.class_id}; skipping its visualization')
 
         if len(marker_array_msg.markers) > 0:
             self.objects_mesh_publisher.publish(marker_array_msg)

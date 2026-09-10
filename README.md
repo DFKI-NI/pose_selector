@@ -128,7 +128,7 @@ response:
 
 **PoseUpdate.srv**
 
-This service updates the current pose information (either creating new entries or updating existing ones) with the poses in the service request.
+This service updates the current pose information (either creating new entries or updating existing ones) with the poses in the service request. Explicit service updates are authoritative and may add classes that are not listed in `objects_of_interest`; that filter applies only to the continuously subscribed perception topic.
 
 request:
 
@@ -187,7 +187,7 @@ The pose_selector_node node provides functionalities to create, update, delete, 
 
 **Launch File Arguments**
 * `config_file`: name of configuration file to be loaded. File should be located in /config folder.
-* `objects_of_interest`: object classes to be saved in pose_selector. If this list is empty, all objects will be saved. If this list contains classes, any PoseUpdate call concerning a class not in objects_of_interest will be ignored.
+* `objects_of_interest`: object classes accepted from the perception subscriber. If this list is empty, all subscribed detections are saved. Explicit `PoseUpdate` service calls can add any class.
 
 **Configuration Files**
 
