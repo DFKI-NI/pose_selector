@@ -176,22 +176,28 @@ class PoseSelector
         return true;
     }
 
-    void updatePoses(object_pose_msgs::ObjectList object_list, bool filter_objects_of_interest = true)
+    void updatePoses(object_pose_msgs::ObjectList object_list, bool filter_objects_of_interest = true,
+                     bool at_detection_time = false)
     {
-        ///TODO: Alternative ways to do conversion?
-        ///TODO: Should world frame always be used to perform lookup?
-
         //Perform TF lookup based on object_list.header.frame_id
         std::string reference_tf = object_list.header.frame_id;
 
         geometry_msgs::TransformStamped camera_to_world_tf;
 
+        // Detections are transformed with the camera pose at their image time: DOPE results arrive late, and with
+        // the latest transform a detection made before an arm motion was stored far off (klt_1 at 2.4 m after an
+        // inspection close-up on the real robot). Explicit updates keep the latest transform.
+        const ros::Time stamp = at_detection_time ? object_list.header.stamp : ros::Time(0);
         try{
-            camera_to_world_tf = tf_buffer_.lookupTransform(this->global_reference_frame_,reference_tf,ros::Time(0));
+            camera_to_world_tf = tf_buffer_.lookupTransform(this->global_reference_frame_, reference_tf, stamp,
+                                                            ros::Duration(at_detection_time ? 0.5 : 0.0));
             }
         catch (tf2::TransformException &ex){
-            ROS_ERROR("%s", ex.what());
-            ros::Duration(1.0).sleep();
+            // never fall back to an identity transform: that stores camera-frame poses as world poses
+            ROS_WARN_THROTTLE(5.0, "pose selector: dropping %zu detection(s), no transform %s -> %s at %.3f: %s",
+                              object_list.objects.size(), reference_tf.c_str(), global_reference_frame_.c_str(),
+                              stamp.toSec(), ex.what());
+            return;
         }
 
         //Convert camera_to_world_tf to tf::Transform
@@ -243,7 +249,7 @@ class PoseSelector
     void poseCallback(object_pose_msgs::ObjectList object_list)
     {
 
-        updatePoses(object_list);
+        updatePoses(object_list, true, true);
         if(debug_) printPoses();
 
     }
